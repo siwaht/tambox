@@ -1,6 +1,6 @@
 "use client";
 
-import { useEditorStore, Block, BlockType, isContainerType } from "@/store/editor-store";
+import { useEditorStore, Block, isContainerType } from "@/store/editor-store";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import React from "react";
 
@@ -16,11 +16,11 @@ function BlockContent({ block }: { block: Block }) {
       return <div className={`${sizes[p.level || 2]} font-bold`} style={customStyle}>{p.text}</div>;
     }
     case "text":
-      return <p className="text-sm text-[var(--text-primary)]" style={customStyle}>{p.text}</p>;
+      return <p className="text-sm text-[var(--text-primary)] leading-relaxed" style={customStyle}>{p.text}</p>;
     case "button":
       return (
         <button
-          className="px-4 py-2 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white rounded-md text-sm transition pointer-events-none"
+          className="px-4 py-2 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white rounded-md text-sm font-medium transition pointer-events-none"
           style={{ borderRadius: p.borderRadius, ...customStyle }}
         >
           {p.text}
@@ -38,19 +38,19 @@ function BlockContent({ block }: { block: Block }) {
         />
       );
     case "divider":
-      return <hr className="border-[var(--border-color)] my-2" />;
+      return <hr className="border-[var(--border-color)]" />;
     case "spacer":
       return <div style={{ height: p.height || "24px" }} />;
     case "badge":
       return (
-        <span className="inline-block px-2 py-0.5 text-xs bg-[var(--accent)]/20 text-[var(--accent-hover)] rounded-full">
+        <span className="inline-block px-2.5 py-0.5 text-xs font-medium bg-[var(--accent-muted)] text-[var(--accent-hover)] rounded-full">
           {p.text}
         </span>
       );
     case "avatar":
-      return <img src={p.src} alt={p.alt} className="w-10 h-10 rounded-full" />;
+      return <img src={p.src} alt={p.alt} className="w-10 h-10 rounded-full ring-2 ring-[var(--border-color)]" />;
     case "link":
-      return <span className="text-[var(--accent-hover)] underline text-sm cursor-pointer" style={customStyle}>{p.text}</span>;
+      return <span className="text-[var(--accent-hover)] underline underline-offset-2 text-sm cursor-pointer" style={customStyle}>{p.text}</span>;
     default:
       return null;
   }
@@ -119,17 +119,17 @@ export default function CanvasBlock({ id, depth = 0 }: { id: string; depth?: num
         selectBlock(id);
       }}
       className={`relative group cursor-grab active:cursor-grabbing transition-all
-        ${isDragging ? "opacity-30 scale-[0.98]" : ""}
+        ${isDragging ? "opacity-20 scale-[0.98]" : ""}
         ${isSelected ? "ring-2 ring-[var(--accent)] ring-offset-1 ring-offset-[var(--bg-primary)]" : ""}
-        ${isOver && isContainer ? "ring-2 ring-dashed ring-[var(--accent)]" : ""}
-        ${!isContainer ? "block-hover rounded" : "rounded-lg"}
+        ${isOver && isContainer ? "ring-2 ring-dashed ring-[var(--accent)]/50" : ""}
+        ${!isContainer ? "block-hover rounded-md" : "rounded-lg"}
       `}
       style={isContainer ? containerStyles[block.type] : undefined}
     >
-      {/* Block label */}
+      {/* Block type label */}
       <div
-        className={`absolute -top-5 left-1 text-[10px] uppercase tracking-wider font-medium
-          ${isSelected ? "text-[var(--accent)]" : "text-transparent group-hover:text-[var(--text-secondary)]"}
+        className={`absolute -top-5 left-1 text-[9px] uppercase tracking-wider font-medium
+          ${isSelected ? "text-[var(--accent)]" : "text-transparent group-hover:text-[var(--text-muted)]"}
           transition-colors pointer-events-none z-10`}
       >
         {block.type}
@@ -137,26 +137,20 @@ export default function CanvasBlock({ id, depth = 0 }: { id: string; depth?: num
 
       {/* Action buttons */}
       {isSelected && (
-        <div className="absolute -top-2 -right-2 flex gap-0.5 z-20">
+        <div className="absolute -top-2 -right-2 flex gap-1 z-20 animate-in">
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              duplicateBlock(id);
-            }}
-            className="w-5 h-5 bg-[var(--accent)] text-white rounded-full text-xs flex items-center justify-center hover:scale-110 transition"
+            onClick={(e) => { e.stopPropagation(); duplicateBlock(id); }}
+            className="w-5 h-5 bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--text-secondary)] rounded text-[10px] flex items-center justify-center hover:text-[var(--accent)] hover:border-[var(--accent)] transition"
             onPointerDown={(e) => e.stopPropagation()}
-            title="Duplicate (Ctrl+D)"
+            title="Duplicate"
           >
             ⧉
           </button>
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              removeBlock(id);
-            }}
-            className="w-5 h-5 bg-[var(--danger)] text-white rounded-full text-xs flex items-center justify-center hover:scale-110 transition"
+            onClick={(e) => { e.stopPropagation(); removeBlock(id); }}
+            className="w-5 h-5 bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--text-secondary)] rounded text-[10px] flex items-center justify-center hover:text-[var(--danger)] hover:border-[var(--danger)] transition"
             onPointerDown={(e) => e.stopPropagation()}
-            title="Delete (Del)"
+            title="Delete"
           >
             ×
           </button>
@@ -167,7 +161,7 @@ export default function CanvasBlock({ id, depth = 0 }: { id: string; depth?: num
       {isContainer ? (
         <div className={`min-h-[48px] ${block.children.length === 0 ? "flex items-center justify-center" : ""}`}>
           {block.children.length === 0 ? (
-            <span className="text-xs text-[var(--text-secondary)] italic">Drop blocks here</span>
+            <span className="text-xs text-[var(--text-muted)] italic">Drop blocks here</span>
           ) : (
             block.children.map((childId) => (
               <div key={childId} className="my-1">

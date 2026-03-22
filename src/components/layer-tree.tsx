@@ -1,22 +1,12 @@
 "use client";
 
-import { useEditorStore, isContainerType } from "@/store/editor-store";
+import { useEditorStore } from "@/store/editor-store";
 
 const TYPE_ICONS: Record<string, string> = {
-  container: "☐",
-  card: "▢",
-  "flex-row": "⇔",
-  grid: "⊞",
-  heading: "H",
-  text: "T",
-  image: "🖼",
-  link: "🔗",
-  button: "▶",
-  input: "✎",
-  divider: "—",
-  spacer: "↕",
-  badge: "●",
-  avatar: "◉",
+  container: "□", card: "▢", "flex-row": "⇔", grid: "⊞",
+  heading: "H", text: "T", image: "◻", link: "↗",
+  button: "▸", input: "⌨", divider: "—", spacer: "↕",
+  badge: "●", avatar: "◉",
 };
 
 function LayerItem({ id, depth = 0 }: { id: string; depth?: number }) {
@@ -25,52 +15,62 @@ function LayerItem({ id, depth = 0 }: { id: string; depth?: number }) {
   const selectBlock = useEditorStore((s) => s.selectBlock);
   const removeBlock = useEditorStore((s) => s.removeBlock);
   const duplicateBlock = useEditorStore((s) => s.duplicateBlock);
+  const moveBlockInList = useEditorStore((s) => s.moveBlockInList);
 
   if (!block) return null;
 
   const isSelected = selectedId === id;
-  const hasChildren = block.children.length > 0;
   const label = block.props.text
-    ? `${block.type} — "${block.props.text.slice(0, 20)}${(block.props.text.length || 0) > 20 ? "…" : ""}"`
+    ? `${block.type} — "${block.props.text.slice(0, 18)}${(block.props.text.length || 0) > 18 ? "…" : ""}"`
     : block.type;
 
   return (
     <div>
       <div
-        onClick={(e) => {
-          e.stopPropagation();
-          selectBlock(id);
-        }}
-        className={`flex items-center gap-1.5 px-2 py-1 cursor-pointer text-xs transition-colors group
-          ${isSelected ? "bg-[var(--accent)]/20 text-[var(--accent-hover)]" : "text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"}`}
-        style={{ paddingLeft: `${depth * 16 + 8}px` }}
+        onClick={(e) => { e.stopPropagation(); selectBlock(id); }}
+        className={`flex items-center gap-1 px-2 py-1.5 cursor-pointer text-[12px] transition-colors group rounded-sm mx-1
+          ${isSelected
+            ? "bg-[var(--accent-muted)] text-[var(--accent-hover)]"
+            : "text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
+          }`}
+        style={{ paddingLeft: `${depth * 14 + 8}px` }}
       >
-        <span className="w-4 text-center shrink-0 text-[10px]">
+        <span className="w-4 text-center shrink-0 text-[10px] text-[var(--text-muted)]">
           {TYPE_ICONS[block.type] || "?"}
         </span>
         <span className="truncate flex-1">{label}</span>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            duplicateBlock(id);
-          }}
-          className="opacity-0 group-hover:opacity-100 text-[var(--text-secondary)] hover:text-[var(--accent)] transition text-[10px]"
-          title="Duplicate"
-        >
-          ⧉
-        </button>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            removeBlock(id);
-          }}
-          className="opacity-0 group-hover:opacity-100 text-[var(--text-secondary)] hover:text-[var(--danger)] transition text-[10px]"
-          title="Delete"
-        >
-          ✕
-        </button>
+        <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition shrink-0">
+          <button
+            onClick={(e) => { e.stopPropagation(); moveBlockInList(id, "up"); }}
+            className="text-[var(--text-muted)] hover:text-[var(--accent)] transition text-[10px] p-0.5"
+            title="Move up"
+          >
+            ▲
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); moveBlockInList(id, "down"); }}
+            className="text-[var(--text-muted)] hover:text-[var(--accent)] transition text-[10px] p-0.5"
+            title="Move down"
+          >
+            ▼
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); duplicateBlock(id); }}
+            className="text-[var(--text-muted)] hover:text-[var(--accent)] transition text-[10px] p-0.5"
+            title="Duplicate"
+          >
+            ⧉
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); removeBlock(id); }}
+            className="text-[var(--text-muted)] hover:text-[var(--danger)] transition text-[10px] p-0.5"
+            title="Delete"
+          >
+            ✕
+          </button>
+        </div>
       </div>
-      {hasChildren && (
+      {block.children.length > 0 && (
         <div>
           {block.children.map((childId) => (
             <LayerItem key={childId} id={childId} depth={depth + 1} />
@@ -86,13 +86,10 @@ export default function LayerTree() {
 
   return (
     <div className="h-full overflow-y-auto py-2">
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)] px-3 mb-2">
-        Layer Tree
-      </h3>
       {rootIds.length === 0 ? (
-        <p className="text-xs text-[var(--text-secondary)] px-3 mt-4 text-center">
-          No blocks on canvas
-        </p>
+        <div className="flex flex-col items-center justify-center h-32 text-[var(--text-muted)]">
+          <p className="text-xs">No blocks on canvas</p>
+        </div>
       ) : (
         rootIds.map((id) => <LayerItem key={id} id={id} />)
       )}

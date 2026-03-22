@@ -11,9 +11,9 @@ export default function PropertiesPanel() {
 
   if (!block) {
     return (
-      <div className="p-4 text-center text-[var(--text-secondary)] text-sm">
-        <p className="mb-2">No block selected</p>
-        <p className="text-xs">Click a block on the canvas to edit its properties</p>
+      <div className="flex flex-col items-center justify-center h-full text-[var(--text-muted)] px-6">
+        <div className="text-3xl mb-3 opacity-20">⚙</div>
+        <p className="text-xs text-center leading-relaxed">Select a block on the canvas to edit its properties</p>
       </div>
     );
   }
@@ -25,30 +25,30 @@ export default function PropertiesPanel() {
     const val = (p as Record<string, unknown>)[key] ?? "";
     return (
       <label className="block mb-3">
-        <span className="text-[10px] uppercase tracking-wider text-[var(--text-secondary)] mb-1 block">{label}</span>
+        <span className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-1.5 block font-medium">{label}</span>
         {type === "select" && options ? (
           <select
             value={String(val)}
             onChange={(e) => updateBlockProps(block.id, { [key]: e.target.value })}
-            className="w-full px-2 py-1.5 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded text-sm text-[var(--text-primary)]"
+            className="input-base"
           >
             {options.map((o) => (
               <option key={o} value={o}>{o}</option>
             ))}
           </select>
         ) : type === "color" ? (
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
             <input
               type="color"
               value={String(val) || "#000000"}
               onChange={(e) => updateBlockProps(block.id, { [key]: e.target.value })}
-              className="w-8 h-8 rounded border border-[var(--border-color)] cursor-pointer bg-transparent"
+              className="w-7 h-7 rounded border border-[var(--border-color)] cursor-pointer bg-transparent shrink-0"
             />
             <input
               type="text"
               value={String(val)}
               onChange={(e) => updateBlockProps(block.id, { [key]: e.target.value })}
-              className="flex-1 px-2 py-1.5 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded text-sm text-[var(--text-primary)]"
+              className="input-base"
               placeholder="transparent"
             />
           </div>
@@ -61,7 +61,7 @@ export default function PropertiesPanel() {
                 [key]: type === "number" ? Number(e.target.value) : e.target.value,
               })
             }
-            className="w-full px-2 py-1.5 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded text-sm text-[var(--text-primary)]"
+            className="input-base"
           />
         )}
       </label>
@@ -70,30 +70,25 @@ export default function PropertiesPanel() {
 
   return (
     <div className="p-3 overflow-y-auto h-full">
+      {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
-          Properties
-        </h3>
-        <span className="text-[10px] px-2 py-0.5 bg-[var(--accent)]/20 text-[var(--accent-hover)] rounded-full">
+        <span className="text-[11px] px-2 py-1 bg-[var(--accent-muted)] text-[var(--accent-hover)] rounded font-medium">
           {block.type}
         </span>
+        <span className="text-[10px] text-[var(--text-muted)] font-mono">{block.id.slice(0, 8)}</span>
       </div>
 
       {/* Quick actions */}
-      <div className="flex gap-2 mb-4">
-        <button
-          onClick={() => duplicateBlock(block.id)}
-          className="flex-1 text-xs py-1.5 rounded border border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--accent)] hover:border-[var(--accent)] transition"
-        >
+      <div className="flex gap-2 mb-5">
+        <button onClick={() => duplicateBlock(block.id)} className="btn btn-ghost flex-1 text-[11px]">
           Duplicate
         </button>
-        <button
-          onClick={() => removeBlock(block.id)}
-          className="flex-1 text-xs py-1.5 rounded border border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--danger)] hover:border-[var(--danger)] transition"
-        >
+        <button onClick={() => removeBlock(block.id)} className="btn btn-danger-ghost flex-1 text-[11px]">
           Delete
         </button>
       </div>
+
+      <div className="h-px bg-[var(--border-color)] mb-4" />
 
       {/* Content fields */}
       {["heading", "text", "button", "badge", "link"].includes(block.type) && field("Text", "text")}
@@ -112,7 +107,10 @@ export default function PropertiesPanel() {
       {["container", "card", "flex-row", "grid"].includes(block.type) && field("Gap", "gap", "number")}
       {["container", "card", "flex-row", "grid"].includes(block.type) && field("Padding", "padding")}
 
+      <div className="h-px bg-[var(--border-color)] mb-4 mt-1" />
+
       {/* Style fields */}
+      <p className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-3 font-medium">Style</p>
       {field("Border Radius", "borderRadius")}
       {field("Background", "bgColor", "color")}
       {field("Text Color", "textColor", "color")}

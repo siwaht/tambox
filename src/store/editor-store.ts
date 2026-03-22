@@ -50,12 +50,19 @@ export interface Block {
   parentId: string | null;
 }
 
+export type AgentConnectionMode = "built-in" | "external-api" | "webhook";
+
 export interface AgentConfig {
-  type: "langchain" | "langgraph" | "deepagents";
+  type: "langchain" | "langgraph" | "deepagents" | "custom";
+  connectionMode: AgentConnectionMode;
   apiKey: string;
   model: string;
   systemPrompt: string;
   tools: string[];
+  // External connection
+  externalEndpoint: string;
+  webhookUrl: string;
+  customHeaders: string;
 }
 
 // Tracked state (undo/redo applies to this)
@@ -66,13 +73,13 @@ interface TrackedState {
 }
 
 interface EditorState extends TrackedState {
-  // Agent (not tracked by undo)
   agentConfig: AgentConfig;
   agentMessages: { role: "user" | "assistant"; content: string }[];
   agentLoading: boolean;
-
-  // Panel
   activePanel: "blocks" | "properties" | "code" | "agent" | "layers";
+
+  // Clipboard
+  clipboard: AgentBlockDescription[] | null;
 
   // Actions
   addBlock: (type: BlockType, parentId?: string | null, index?: number) => string;
@@ -90,6 +97,16 @@ interface EditorState extends TrackedState {
   exportLayout: () => string;
   importLayout: (json: string) => boolean;
   addBlocksFromAgent: (descriptions: AgentBlockDescription[]) => void;
+  // Clipboard
+  copyBlock: (id: string) => void;
+  pasteBlock: (parentId?: string | null) => void;
+  // Keyboard navigation
+  selectNextSibling: () => void;
+  selectPrevSibling: () => void;
+  selectParentBlock: () => void;
+  selectFirstChild: () => void;
+  // Layer reorder
+  moveBlockInList: (id: string, direction: "up" | "down") => void;
 }
 
 export interface AgentBlockDescription {
@@ -107,9 +124,9 @@ const DEFAULT_PROPS: Record<BlockType, BlockProps> = {
   text: { text: "Text block", fontSize: "14px" },
   heading: { text: "Heading", level: 2, fontWeight: "bold" },
   button: { text: "Button", variant: "primary", borderRadius: "6px" },
-  image: { src: "https://placehold.co/400x200/1a1a2e/6366f1?text=Image", alt: "placeholder", borderRadius: "8px" },
+  image: { src: "https://placehold.co/400x200/18181b/6366f1?text=Image", alt: "placeholder", borderRadius: "8px" },
   input: { placeholder: "Enter text...", borderRadius: "6px" },
-  card: { padding: "16px", bgColor: "#1a1a2e", borderRadius: "12px" },
+  card: { padding: "16px", bgColor: "#18181b", borderRadius: "12px" },
   "flex-row": { gap: 12, justify: "start", align: "center", padding: "8px" },
   grid: { cols: 2, gap: 12, padding: "8px" },
   divider: {},
@@ -119,13 +136,12 @@ const DEFAULT_PROPS: Record<BlockType, BlockProps> = {
   link: { text: "Link", href: "#" },
 };
 
-// Auto-save key
 const STORAGE_KEY = "ui-creator-layout";
 
 function autoSave(state: TrackedState) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ blocks: state.blocks, rootIds: state.rootIds }));
-  } catch {}
+  } catch { /* noop */ }
 }
 
 function autoLoad(): Partial<TrackedState> | null {
@@ -135,9 +151,14 @@ function autoLoad(): Partial<TrackedState> | null {
       const data = JSON.parse(raw);
       if (data.blocks && data.rootIds) return data;
     }
-  } catch {}
+  } catch { /* noop */ }
   return null;
 }
+
+const DEFAULT_SYSTEM_PROMPT = `You are a UI layout assistant. When asked to create UI, respond with a JSON array of block descriptions inside a markdown code block. Valid types: container, text, heading, button, image, input, card, flex-row, grid, divider, spacer, badge, avatar, link. Example:
+\`\`\`json
+[{"type":"card","props":{"padding":"16px"},"children":[{"type":"heading","props":{"text":"Title"}},{"type":"text","props":{"text":"Description"}}]}]
+\`\`\``;
 
 export const useEditorStore = create<EditorState>()(
   temporal(
@@ -147,14 +168,19 @@ export const useEditorStore = create<EditorState>()(
       selectedId: null,
       agentConfig: {
         type: "langchain",
+        connectionMode: "built-in",
         apiKey: "",
         model: "gpt-4o",
-        systemPrompt: "You are a helpful AI assistant that can generate UI layouts. When asked to create UI, respond with a JSON block describing the layout using this format: ```json\n[{\"type\":\"card\",\"props\":{\"padding\":\"16px\"},\"children\":[{\"type\":\"heading\",\"props\":{\"text\":\"Title\"}}]}]\n``` Valid types: container, text, heading, button, image, input, card, flex-row, grid, divider, spacer, badge, avatar, link.",
+        systemPrompt: DEFAULT_SYSTEM_PROMPT,
         tools: [],
+        externalEndpoint: "",
+        webhookUrl: "",
+        customHeaders: "",
       },
       agentMessages: [],
       agentLoading: false,
       activePanel: "blocks",
+      clipboard: null,
 
       addBlock: (type, parentId = null, index) => {
         const id = uuid();
@@ -168,7 +194,7 @@ export const useEditorStore = create<EditorState>()(
 
         set((state) => {
           const blocks = { ...state.blocks, [id]: block };
-          let rootIds = [...state.rootIds];
+          const rootIds = [...state.rootIds];
 
           if (parentId && blocks[parentId]) {
             const parent = { ...blocks[parentId], children: [...blocks[parentId].children] };
@@ -282,13 +308,10 @@ export const useEditorStore = create<EditorState>()(
           const source = blocks[id];
           if (!source) return state;
 
-          // Deep clone a block and all its children
-          const cloneMap = new Map<string, string>();
           const cloneBlock = (srcId: string, newParentId: string | null): string => {
             const src = blocks[srcId];
             if (!src) return "";
             const newId = uuid();
-            cloneMap.set(srcId, newId);
             const clonedChildren: string[] = [];
             for (const childId of src.children) {
               const clonedChildId = cloneBlock(childId, newId);
@@ -373,9 +396,112 @@ export const useEditorStore = create<EditorState>()(
           return { blocks, rootIds };
         });
       },
+
+      // ── Clipboard ──
+      copyBlock: (id: string) => {
+        const { blocks } = get();
+        const block = blocks[id];
+        if (!block) return;
+
+        function serialize(blockId: string): AgentBlockDescription {
+          const b = blocks[blockId];
+          const desc: AgentBlockDescription = { type: b.type, props: { ...b.props } };
+          if (b.children.length > 0) {
+            desc.children = b.children.map(serialize);
+          }
+          return desc;
+        }
+
+        set({ clipboard: [serialize(id)] });
+      },
+
+      pasteBlock: (parentId = null) => {
+        const { clipboard } = get();
+        if (!clipboard || clipboard.length === 0) return;
+        // Reuse addBlocksFromAgent logic — it creates blocks from descriptions
+        get().addBlocksFromAgent(clipboard);
+      },
+
+      // ── Keyboard navigation ──
+      selectNextSibling: () => {
+        const { selectedId, blocks, rootIds } = get();
+        if (!selectedId) {
+          if (rootIds.length > 0) set({ selectedId: rootIds[0] });
+          return;
+        }
+        const block = blocks[selectedId];
+        if (!block) return;
+        const siblings = block.parentId ? blocks[block.parentId]?.children || [] : rootIds;
+        const idx = siblings.indexOf(selectedId);
+        if (idx < siblings.length - 1) {
+          set({ selectedId: siblings[idx + 1] });
+        }
+      },
+
+      selectPrevSibling: () => {
+        const { selectedId, blocks, rootIds } = get();
+        if (!selectedId) {
+          if (rootIds.length > 0) set({ selectedId: rootIds[rootIds.length - 1] });
+          return;
+        }
+        const block = blocks[selectedId];
+        if (!block) return;
+        const siblings = block.parentId ? blocks[block.parentId]?.children || [] : rootIds;
+        const idx = siblings.indexOf(selectedId);
+        if (idx > 0) {
+          set({ selectedId: siblings[idx - 1] });
+        }
+      },
+
+      selectParentBlock: () => {
+        const { selectedId, blocks } = get();
+        if (!selectedId) return;
+        const block = blocks[selectedId];
+        if (block?.parentId) {
+          set({ selectedId: block.parentId });
+        }
+      },
+
+      selectFirstChild: () => {
+        const { selectedId, blocks } = get();
+        if (!selectedId) return;
+        const block = blocks[selectedId];
+        if (block && block.children.length > 0) {
+          set({ selectedId: block.children[0] });
+        }
+      },
+
+      // ── Layer reorder ──
+      moveBlockInList: (id: string, direction: "up" | "down") => {
+        set((state) => {
+          const blocks = { ...state.blocks };
+          const rootIds = [...state.rootIds];
+          const block = blocks[id];
+          if (!block) return state;
+
+          const list = block.parentId
+            ? [...(blocks[block.parentId]?.children || [])]
+            : rootIds;
+          const idx = list.indexOf(id);
+          if (idx === -1) return state;
+
+          const newIdx = direction === "up" ? idx - 1 : idx + 1;
+          if (newIdx < 0 || newIdx >= list.length) return state;
+
+          // Swap
+          [list[idx], list[newIdx]] = [list[newIdx], list[idx]];
+
+          if (block.parentId && blocks[block.parentId]) {
+            blocks[block.parentId] = { ...blocks[block.parentId], children: list };
+          }
+
+          const finalRootIds = block.parentId ? state.rootIds : list;
+          autoSave({ blocks, rootIds: finalRootIds, selectedId: state.selectedId });
+          return { blocks, rootIds: finalRootIds };
+        });
+      },
     }),
     {
-      // Only track block-related state for undo/redo
       partialize: (state) => ({
         blocks: state.blocks,
         rootIds: state.rootIds,
@@ -408,7 +534,7 @@ export function generateCode(state: Pick<EditorState, "blocks" | "rootIds" | "ag
     for (const k of keys) {
       const v = props[k];
       if (v !== undefined && v !== "" && v !== "transparent") {
-        const cssProp = k === "bgColor" ? "backgroundColor" : k === "textColor" ? "color" : k === "borderRadius" ? "borderRadius" : k === "fontSize" ? "fontSize" : k === "fontWeight" ? "fontWeight" : k;
+        const cssProp = k === "bgColor" ? "backgroundColor" : k === "textColor" ? "color" : k;
         parts.push(`${cssProp}: "${v}"`);
       }
     }
@@ -440,10 +566,10 @@ export function generateCode(state: Pick<EditorState, "blocks" | "rootIds" | "ag
       }
       case "input": {
         const style = styleStr(p, ["borderRadius"]);
-        return `<input placeholder="${p.placeholder}" className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white"${style} />`;
+        return `<input placeholder="${p.placeholder}" className="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-md text-white"${style} />`;
       }
       case "divider":
-        return `<hr className="border-gray-700 my-4" />`;
+        return `<hr className="border-zinc-800 my-4" />`;
       case "spacer":
         return `<div style={{ height: "${p.height}" }} />`;
       case "badge":
@@ -457,7 +583,7 @@ export function generateCode(state: Pick<EditorState, "blocks" | "rootIds" | "ag
       case "container":
       case "card": {
         const style = styleStr(p, ["padding", "bgColor", "borderRadius"]);
-        const cls = block.type === "card" ? "bg-gray-900 border border-gray-800 rounded-xl p-4" : "p-4";
+        const cls = block.type === "card" ? "bg-zinc-900 border border-zinc-800 rounded-xl p-4" : "p-4";
         const kids = block.children.map((cid) => renderBlock(cid, depth + 1)).join("\n");
         return `<div className="${cls}"${style}>\n${indent(kids, 1)}\n</div>`;
       }
@@ -483,19 +609,22 @@ export function generateCode(state: Pick<EditorState, "blocks" | "rootIds" | "ag
   let agentImport = "";
   let agentSetup = "";
 
-  if (agentConfig.apiKey) {
+  if (agentConfig.apiKey || agentConfig.externalEndpoint) {
     switch (agentConfig.type) {
       case "langchain":
         agentImport = `import { ChatOpenAI } from "@langchain/openai";\nimport { HumanMessage } from "@langchain/core/messages";`;
-        agentSetup = `\n  // LangChain agent setup\n  const model = new ChatOpenAI({ modelName: "${agentConfig.model}", openAIApiKey: process.env.OPENAI_API_KEY });\n`;
+        agentSetup = `\n  // LangChain agent\n  const model = new ChatOpenAI({ modelName: "${agentConfig.model}", openAIApiKey: process.env.OPENAI_API_KEY });\n`;
         break;
       case "langgraph":
         agentImport = `import { StateGraph, START, END } from "@langchain/langgraph";\nimport { ChatOpenAI } from "@langchain/openai";`;
-        agentSetup = `\n  // LangGraph agent setup\n  const model = new ChatOpenAI({ modelName: "${agentConfig.model}" });\n  // Define your graph nodes and edges here\n`;
+        agentSetup = `\n  // LangGraph agent\n  const model = new ChatOpenAI({ modelName: "${agentConfig.model}" });\n`;
         break;
       case "deepagents":
         agentImport = `import { createDeepAgent } from "deepagents";`;
-        agentSetup = `\n  // DeepAgents setup\n  const agent = createDeepAgent({\n    model: "${agentConfig.model}",\n    systemPrompt: "${agentConfig.systemPrompt.replace(/"/g, '\\"')}",\n  });\n`;
+        agentSetup = `\n  // DeepAgents\n  const agent = createDeepAgent({ model: "${agentConfig.model}" });\n`;
+        break;
+      case "custom":
+        agentSetup = `\n  // Custom agent endpoint: ${agentConfig.externalEndpoint || agentConfig.webhookUrl}\n`;
         break;
     }
   }
@@ -506,10 +635,88 @@ import { useState } from "react";
 
 export default function GeneratedPage() {${agentSetup}
   return (
-    <main className="min-h-screen bg-gray-950 text-white p-8">
+    <main className="min-h-screen bg-zinc-950 text-white p-8">
 ${indent(jsx, 3)}
     </main>
   );
 }
 `;
+}
+
+// ── Standalone project generation ──
+export function generateStandaloneProject(state: Pick<EditorState, "blocks" | "rootIds" | "agentConfig">): Record<string, string> {
+  const code = generateCode(state);
+  const { agentConfig } = state;
+
+  const packageJson: Record<string, unknown> = {
+    name: "ui-creator-export",
+    version: "1.0.0",
+    private: true,
+    scripts: { dev: "next dev", build: "next build", start: "next start" },
+    dependencies: {
+      next: "^15.0.0",
+      react: "^19.0.0",
+      "react-dom": "^19.0.0",
+    },
+    devDependencies: {
+      "@tailwindcss/postcss": "^4.0.0",
+      tailwindcss: "^4.0.0",
+      typescript: "^5.0.0",
+      "@types/react": "^19.0.0",
+      "@types/node": "^22.0.0",
+    },
+  };
+
+  // Add agent deps based on config
+  const deps = packageJson.dependencies as Record<string, string>;
+  if (agentConfig.type === "langchain" || agentConfig.type === "langgraph") {
+    deps["@langchain/openai"] = "^0.3.0";
+    deps["@langchain/core"] = "^0.3.0";
+  }
+  if (agentConfig.type === "langgraph") {
+    deps["@langchain/langgraph"] = "^0.2.0";
+  }
+  if (agentConfig.type === "deepagents") {
+    deps["deepagents"] = "^1.0.0";
+  }
+
+  const files: Record<string, string> = {
+    "package.json": JSON.stringify(packageJson, null, 2),
+    "tsconfig.json": JSON.stringify({
+      compilerOptions: {
+        target: "ES2017",
+        lib: ["dom", "dom.iterable", "esnext"],
+        allowJs: true,
+        skipLibCheck: true,
+        strict: true,
+        noEmit: true,
+        esModuleInterop: true,
+        module: "esnext",
+        moduleResolution: "bundler",
+        resolveJsonModule: true,
+        isolatedModules: true,
+        jsx: "preserve",
+        incremental: true,
+        plugins: [{ name: "next" }],
+        paths: { "@/*": ["./src/*"] },
+      },
+      include: ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
+      exclude: ["node_modules"],
+    }, null, 2),
+    "next.config.ts": `import type { NextConfig } from "next";\nconst nextConfig: NextConfig = {};\nexport default nextConfig;\n`,
+    "postcss.config.mjs": `/** @type {import('postcss-load-config').Config} */\nconst config = { plugins: { "@tailwindcss/postcss": {} } };\nexport default config;\n`,
+    "src/app/globals.css": `@import "tailwindcss";\n\nbody {\n  background: #09090b;\n  color: #fafafa;\n  font-family: system-ui, sans-serif;\n}\n`,
+    "src/app/layout.tsx": `import "./globals.css";\nexport const metadata = { title: "Generated UI" };\nexport default function Layout({ children }: { children: React.ReactNode }) {\n  return <html lang="en"><body>{children}</body></html>;\n}\n`,
+    "src/app/page.tsx": code,
+    "README.md": `# Generated UI\n\nThis project was exported from UI Creator.\n\n## Getting Started\n\n\`\`\`bash\nnpm install\nnpm run dev\n\`\`\`\n\nOpen [http://localhost:3000](http://localhost:3000).\n\n## Agent Integration\n\nFramework: ${agentConfig.type}\nModel: ${agentConfig.model}\n${agentConfig.externalEndpoint ? `External Endpoint: ${agentConfig.externalEndpoint}\n` : ""}${agentConfig.webhookUrl ? `Webhook URL: ${agentConfig.webhookUrl}\n` : ""}\n`,
+  };
+
+  // Add .env.example if using API keys
+  if (agentConfig.apiKey) {
+    const envKey = agentConfig.type === "deepagents" && agentConfig.model?.includes("claude")
+      ? "ANTHROPIC_API_KEY" : "OPENAI_API_KEY";
+    files[".env.local.example"] = `# Add your API key\n${envKey}=your-key-here\n`;
+  }
+
+  return files;
 }
