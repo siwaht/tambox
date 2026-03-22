@@ -36,7 +36,6 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={{ toast }}>
       {children}
-      {/* Toast container */}
       <div className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none">
         {toasts.map((t) => (
           <ToastItem key={t.id} toast={t} onDismiss={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))} />
@@ -56,9 +55,9 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
   }, []);
 
   const colors = {
-    success: "border-[var(--success)] bg-[var(--success-subtle)]",
-    error: "border-[var(--danger)] bg-[var(--danger-subtle)]",
-    info: "border-[var(--accent)] bg-[var(--accent-subtle)]",
+    success: "border-l-[var(--success)]",
+    error: "border-l-[var(--danger)]",
+    info: "border-l-[var(--accent)]",
   };
 
   const icons = { success: "✓", error: "✕", info: "ℹ" };
@@ -70,14 +69,14 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
 
   return (
     <div
-      className={`pointer-events-auto flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg border
-        bg-[var(--bg-elevated)] shadow-lg backdrop-blur-sm
+      className={`pointer-events-auto flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg border border-l-[3px]
+        bg-[var(--bg-elevated)] border-[var(--border-color)] shadow-lg
         transition-all duration-300 ease-out cursor-pointer
         ${colors[toast.type]}
-        ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"}`}
+        ${visible ? "opacity-100 translate-y-0 translate-x-0" : "opacity-0 translate-y-1 translate-x-2"}`}
       onClick={onDismiss}
     >
-      <span className={`text-[12px] font-medium ${iconColors[toast.type]}`}>{icons[toast.type]}</span>
+      <span className={`text-[12px] font-semibold ${iconColors[toast.type]}`}>{icons[toast.type]}</span>
       <span className="text-[12px] text-[var(--text-primary)]">{toast.message}</span>
     </div>
   );

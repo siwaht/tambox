@@ -34,14 +34,14 @@ function DraggableBlock({ type, label, icon }: { type: BlockType; label: string;
       ref={setNodeRef}
       {...listeners}
       {...attributes}
-      className={`flex items-center gap-2.5 px-3 py-2 rounded-md cursor-grab active:cursor-grabbing
+      className={`flex flex-col items-center justify-center gap-1 py-2.5 px-1 rounded-lg cursor-grab active:cursor-grabbing
         border border-[var(--border-color)] bg-[var(--bg-secondary)]
-        hover:bg-[var(--bg-tertiary)] hover:border-[var(--text-muted)]
-        transition-all text-[13px] select-none
-        ${isDragging ? "opacity-30 scale-95" : ""}`}
+        hover:bg-[var(--bg-hover)] hover:border-[var(--border-focus)] hover:shadow-sm
+        transition-all select-none
+        ${isDragging ? "opacity-20 scale-90" : ""}`}
     >
-      <span className="text-sm w-4 text-center text-[var(--text-muted)]">{icon}</span>
-      <span className="text-[var(--text-primary)]">{label}</span>
+      <span className="text-[14px] text-[var(--text-muted)] leading-none">{icon}</span>
+      <span className="text-[10px] font-medium text-[var(--text-secondary)]">{label}</span>
     </div>
   );
 }
@@ -50,7 +50,7 @@ export default function BlockPalette() {
   const [search, setSearch] = useState("");
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return null; // null = show categories
+    if (!search.trim()) return null;
     const q = search.toLowerCase();
     return ALL_BLOCKS.filter(
       (b) => b.label.toLowerCase().includes(q) || b.type.toLowerCase().includes(q) || b.category.toLowerCase().includes(q)
@@ -59,36 +59,37 @@ export default function BlockPalette() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Search */}
-      <div className="p-2 border-b border-[var(--border-subtle)]">
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search blocks..."
-          className="input-base text-[12px] py-1.5"
-        />
+      <div className="p-2.5 border-b border-[var(--border-subtle)]">
+        <div className="relative">
+          <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search blocks..."
+            className="input-base text-[12px] py-1.5 pl-8"
+          />
+        </div>
       </div>
 
-      <div className="p-3 space-y-5 overflow-y-auto flex-1">
+      <div className="p-2.5 space-y-4 overflow-y-auto flex-1">
         {filtered ? (
-          // Search results
           filtered.length === 0 ? (
-            <p className="text-xs text-[var(--text-muted)] text-center mt-4">No blocks match &quot;{search}&quot;</p>
+            <p className="text-[11px] text-[var(--text-muted)] text-center mt-6">No blocks match &quot;{search}&quot;</p>
           ) : (
-            <div className="grid grid-cols-2 gap-1.5">
+            <div className="grid grid-cols-3 gap-1.5">
               {filtered.map((b) => (
                 <DraggableBlock key={b.type} type={b.type} label={b.label} icon={b.icon} />
               ))}
             </div>
           )
         ) : (
-          // Categorized view
           CATEGORIES.map((cat) => (
             <div key={cat}>
-              <p className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-2 px-0.5 font-medium">
-                {cat}
-              </p>
-              <div className="grid grid-cols-2 gap-1.5">
+              <p className="sidebar-section-title">{cat}</p>
+              <div className="grid grid-cols-3 gap-1.5">
                 {ALL_BLOCKS.filter((b) => b.category === cat).map((b) => (
                   <DraggableBlock key={b.type} type={b.type} label={b.label} icon={b.icon} />
                 ))}

@@ -39,17 +39,24 @@ export default function ConfirmDialog({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[60]" onClick={onCancel}>
+    <div className="overlay-backdrop" style={{ zIndex: 60 }} onClick={onCancel}>
       <div
-        className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl p-5 w-[360px] shadow-2xl animate-in"
+        className="overlay-panel p-5 w-[360px] animate-scale"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-[14px] font-semibold text-[var(--text-primary)] mb-2">{title}</h3>
-        <p className="text-[12px] text-[var(--text-secondary)] leading-relaxed mb-5">{message}</p>
+        <div className="flex items-start gap-3 mb-4">
+          {variant === "danger" && (
+            <div className="w-8 h-8 rounded-lg bg-[var(--danger-subtle)] flex items-center justify-center shrink-0 mt-0.5">
+              <span className="text-[var(--danger)] text-[14px]">⚠</span>
+            </div>
+          )}
+          <div>
+            <h3 className="text-[14px] font-semibold text-[var(--text-primary)] mb-1">{title}</h3>
+            <p className="text-[12px] text-[var(--text-secondary)] leading-relaxed">{message}</p>
+          </div>
+        </div>
         <div className="flex justify-end gap-2">
-          <button onClick={onCancel} className="btn btn-ghost text-[12px]">
-            {cancelLabel}
-          </button>
+          <button onClick={onCancel} className="btn btn-ghost text-[12px]">{cancelLabel}</button>
           <button
             ref={confirmRef}
             onClick={onConfirm}

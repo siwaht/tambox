@@ -4,17 +4,16 @@ import { useEditorStore, generateCode, generateStandaloneProject } from "@/store
 import { useState, useMemo } from "react";
 import { useToast } from "@/components/toast";
 
-// Simple JSX/TSX syntax highlighter — no external deps needed
 function highlightCode(code: string): React.ReactNode[] {
   const lines = code.split("\n");
   return lines.map((line, i) => {
     const tokens = tokenizeLine(line);
     return (
-      <div key={i} className="flex">
-        <span className="inline-block w-8 text-right mr-4 text-[var(--text-muted)] select-none opacity-50 text-[11px]">
+      <div key={i} className="flex hover:bg-[var(--bg-hover)] -mx-4 px-4 rounded-sm">
+        <span className="inline-block w-7 text-right mr-4 text-[var(--text-muted)] select-none opacity-40 text-[11px] shrink-0">
           {i + 1}
         </span>
-        <span>{tokens}</span>
+        <span className="flex-1">{tokens}</span>
       </div>
     );
   });
@@ -38,14 +37,12 @@ function tokenizeLine(line: string): React.ReactNode[] {
   ];
 
   while (remaining.length > 0) {
-    // Leading whitespace
     const wsMatch = remaining.match(/^(\s+)/);
     if (wsMatch) {
       nodes.push(<span key={key++}>{wsMatch[1]}</span>);
       remaining = remaining.slice(wsMatch[1].length);
       continue;
     }
-
     let matched = false;
     for (const [pattern, className] of patterns) {
       const m = remaining.match(pattern);
@@ -56,14 +53,11 @@ function tokenizeLine(line: string): React.ReactNode[] {
         break;
       }
     }
-
     if (!matched) {
-      // Take one char
       nodes.push(<span key={key++}>{remaining[0]}</span>);
       remaining = remaining.slice(1);
     }
   }
-
   return nodes;
 }
 
@@ -83,7 +77,7 @@ export default function CodePanel() {
 
   const copyCode = async () => {
     await navigator.clipboard.writeText(code);
-    toast("Code copied to clipboard", "success");
+    toast("Code copied", "success");
   };
 
   const downloadComponent = () => {
@@ -137,13 +131,9 @@ export default function CodePanel() {
 
       {activeTab === "component" ? (
         <>
-          <div className="flex items-center gap-2 p-2 border-b border-[var(--border-subtle)]">
-            <button onClick={copyCode} className="btn btn-ghost text-[11px] flex-1">
-              Copy Code
-            </button>
-            <button onClick={downloadComponent} className="btn btn-primary text-[11px] flex-1">
-              Download .tsx
-            </button>
+          <div className="flex items-center gap-1.5 p-2 border-b border-[var(--border-subtle)]">
+            <button onClick={copyCode} className="btn btn-ghost text-[11px] flex-1">Copy</button>
+            <button onClick={downloadComponent} className="btn btn-primary text-[11px] flex-1">Download .tsx</button>
           </div>
           <pre className="flex-1 overflow-auto p-4 code-block text-[var(--text-primary)] bg-[var(--bg-primary)]">
             <code>{highlighted}</code>
@@ -153,19 +143,19 @@ export default function CodePanel() {
         <div className="flex-1 overflow-y-auto p-4">
           <div className="space-y-4">
             <p className="text-[12px] text-[var(--text-secondary)] leading-relaxed">
-              Download a complete Next.js project with your layout, Tailwind CSS, TypeScript, and agent integration. Ready to run with{" "}
-              <code className="text-[var(--accent-hover)] bg-[var(--accent-subtle)] px-1 py-0.5 rounded text-[11px]">npm install && npm run dev</code>.
+              Download a complete Next.js project ready to run with{" "}
+              <code className="text-[var(--accent-hover)] bg-[var(--accent-subtle)] px-1.5 py-0.5 rounded text-[11px] font-mono">npm install && npm run dev</code>
             </p>
 
-            <div className="space-y-2">
-              <p className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] font-medium">Includes</p>
+            <div className="space-y-1.5">
+              <p className="sidebar-section-title">Includes</p>
               {[
                 { label: "Next.js 15 + React 19", desc: "App router, TypeScript" },
                 { label: "Tailwind CSS 4", desc: "Utility-first styling" },
-                { label: "Your Layout", desc: `${Object.keys(blocks).length} blocks exported` },
-                { label: `${agentConfig.type} Integration`, desc: agentConfig.model || "No model set" },
+                { label: "Your Layout", desc: `${Object.keys(blocks).length} blocks` },
+                { label: `${agentConfig.type} Integration`, desc: agentConfig.model || "No model" },
               ].map((item) => (
-                <div key={item.label} className="flex items-center justify-between py-1.5 px-2 rounded bg-[var(--bg-tertiary)] border border-[var(--border-subtle)]">
+                <div key={item.label} className="flex items-center justify-between py-2 px-2.5 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-subtle)]">
                   <span className="text-[12px] text-[var(--text-primary)]">{item.label}</span>
                   <span className="text-[10px] text-[var(--text-muted)]">{item.desc}</span>
                 </div>
@@ -174,7 +164,7 @@ export default function CodePanel() {
 
             {(agentConfig.externalEndpoint || agentConfig.webhookUrl) && (
               <div className="p-3 rounded-lg bg-[var(--accent-subtle)] border border-[var(--accent-muted)]">
-                <p className="text-[10px] uppercase tracking-widest text-[var(--accent-hover)] font-medium mb-1">External Connection</p>
+                <p className="sidebar-section-title text-[var(--accent-hover)]">External Connection</p>
                 <p className="text-[11px] text-[var(--text-secondary)] font-mono break-all">
                   {agentConfig.externalEndpoint || agentConfig.webhookUrl}
                 </p>

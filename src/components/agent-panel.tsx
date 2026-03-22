@@ -11,35 +11,26 @@ const VALID_TYPES = new Set<string>([
 function parseAgentBlocks(text: string): AgentBlockDescription[] | null {
   const jsonMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/) || text.match(/(\[[\s\S]*\])/);
   if (!jsonMatch) return null;
-
   try {
     const parsed = JSON.parse(jsonMatch[1]);
     const arr = Array.isArray(parsed) ? parsed : [parsed];
-
     function validate(desc: unknown): AgentBlockDescription | null {
       if (!desc || typeof desc !== "object") return null;
       const d = desc as Record<string, unknown>;
       if (!VALID_TYPES.has(d.type as string)) return null;
       const result: AgentBlockDescription = { type: d.type as BlockType };
-      if (d.props && typeof d.props === "object") {
-        result.props = d.props as AgentBlockDescription["props"];
-      }
-      if (Array.isArray(d.children)) {
-        result.children = d.children.map(validate).filter(Boolean) as AgentBlockDescription[];
-      }
+      if (d.props && typeof d.props === "object") result.props = d.props as AgentBlockDescription["props"];
+      if (Array.isArray(d.children)) result.children = d.children.map(validate).filter(Boolean) as AgentBlockDescription[];
       return result;
     }
-
     const validated = arr.map(validate).filter(Boolean) as AgentBlockDescription[];
     return validated.length > 0 ? validated : null;
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
 const CONNECTION_MODES: { key: AgentConnectionMode; label: string; desc: string }[] = [
   { key: "built-in", label: "Built-in", desc: "Direct API calls to OpenAI/Anthropic" },
-  { key: "external-api", label: "External API", desc: "Connect your own LangChain/LangGraph server" },
+  { key: "external-api", label: "External", desc: "Connect your own LangChain/LangGraph server" },
   { key: "webhook", label: "Webhook", desc: "Send events to any webhook endpoint" },
 ];
 
@@ -66,7 +57,6 @@ export default function AgentPanel() {
     setInput("");
     addAgentMessage({ role: "user", content: userMsg });
     setAgentLoading(true);
-
     try {
       const res = await fetch("/api/agent", {
         method: "POST",
@@ -76,7 +66,6 @@ export default function AgentPanel() {
       const data = await res.json();
       const responseText = data.response || data.error || "No response";
       addAgentMessage({ role: "assistant", content: responseText });
-
       const blocks = parseAgentBlocks(responseText);
       if (blocks) addBlocksFromAgent(blocks);
     } catch (err) {
@@ -92,21 +81,11 @@ export default function AgentPanel() {
       const res = await fetch("/api/agent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: "Say hello in one sentence.",
-          config: agentConfig,
-          history: [],
-        }),
+        body: JSON.stringify({ message: "Say hello in one sentence.", config: agentConfig, history: [] }),
       });
       const data = await res.json();
-      if (data.error) {
-        setTestStatus("error");
-      } else {
-        setTestStatus("success");
-      }
-    } catch {
-      setTestStatus("error");
-    }
+      setTestStatus(data.error ? "error" : "success");
+    } catch { setTestStatus("error"); }
     setTimeout(() => setTestStatus("idle"), 3000);
   };
 
@@ -126,7 +105,7 @@ export default function AgentPanel() {
       {/* Config toggle */}
       <button
         onClick={() => setShowConfig(!showConfig)}
-        className="flex items-center justify-between px-3 py-2.5 border-b border-[var(--border-color)] hover:bg-[var(--bg-tertiary)] transition"
+        className="flex items-center justify-between px-3 py-2.5 border-b border-[var(--border-color)] hover:bg-[var(--bg-hover)] transition"
       >
         <div className="flex items-center gap-2">
           <div className={`w-1.5 h-1.5 rounded-full ${isConnected ? "bg-[var(--success)] pulse-dot" : "bg-[var(--text-muted)]"}`} />
@@ -139,19 +118,15 @@ export default function AgentPanel() {
 
       {showConfig && (
         <div className="p-3 border-b border-[var(--border-color)] space-y-3 animate-in">
-          {/* Connection mode tabs */}
+          {/* Connection mode */}
           <div>
-            <span className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-1.5 block font-medium">Connection</span>
-            <div className="flex gap-1 p-0.5 bg-[var(--bg-primary)] rounded-md">
+            <span className="sidebar-section-title block mb-1.5">Connection</span>
+            <div className="toolbar-group">
               {CONNECTION_MODES.map((mode) => (
                 <button
                   key={mode.key}
                   onClick={() => setAgentConfig({ connectionMode: mode.key })}
-                  className={`flex-1 py-1.5 text-[10px] font-medium rounded transition
-                    ${agentConfig.connectionMode === mode.key
-                      ? "bg-[var(--accent-muted)] text-[var(--accent-hover)]"
-                      : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
-                    }`}
+                  className={`toolbar-btn flex-1 text-[10px] font-medium ${agentConfig.connectionMode === mode.key ? "active" : ""}`}
                 >
                   {mode.label}
                 </button>
@@ -162,13 +137,13 @@ export default function AgentPanel() {
             </p>
           </div>
 
-          {/* Framework selector */}
+          {/* Framework */}
           <label className="block">
-            <span className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-1.5 block font-medium">Framework</span>
+            <span className="sidebar-section-title block mb-1.5">Framework</span>
             <select
               value={agentConfig.type}
               onChange={(e) => setAgentConfig({ type: e.target.value as AgentConfig["type"] })}
-              className="input-base"
+              className="input-base text-[12px]"
             >
               <option value="langchain">LangChain</option>
               <option value="langgraph">LangGraph</option>
@@ -177,90 +152,52 @@ export default function AgentPanel() {
             </select>
           </label>
 
-          {/* Built-in fields */}
+          {/* Built-in */}
           {agentConfig.connectionMode === "built-in" && (
             <>
               <label className="block">
-                <span className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-1.5 block font-medium">API Key</span>
-                <input
-                  type="password"
-                  value={agentConfig.apiKey}
-                  onChange={(e) => setAgentConfig({ apiKey: e.target.value })}
-                  placeholder="sk-..."
-                  className="input-base"
-                />
+                <span className="sidebar-section-title block mb-1.5">API Key</span>
+                <input type="password" value={agentConfig.apiKey} onChange={(e) => setAgentConfig({ apiKey: e.target.value })} placeholder="sk-..." className="input-base text-[12px]" />
               </label>
               <label className="block">
-                <span className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-1.5 block font-medium">Model</span>
-                <input
-                  value={agentConfig.model}
-                  onChange={(e) => setAgentConfig({ model: e.target.value })}
-                  placeholder="gpt-4o / claude-sonnet-4-6"
-                  className="input-base"
-                />
+                <span className="sidebar-section-title block mb-1.5">Model</span>
+                <input value={agentConfig.model} onChange={(e) => setAgentConfig({ model: e.target.value })} placeholder="gpt-4o / claude-sonnet-4-6" className="input-base text-[12px]" />
               </label>
             </>
           )}
 
-          {/* External API fields */}
+          {/* External API */}
           {agentConfig.connectionMode === "external-api" && (
             <>
               <label className="block">
-                <span className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-1.5 block font-medium">Endpoint URL</span>
-                <input
-                  value={agentConfig.externalEndpoint}
-                  onChange={(e) => setAgentConfig({ externalEndpoint: e.target.value })}
-                  placeholder="https://your-server.com/api/chat"
-                  className="input-base"
-                />
+                <span className="sidebar-section-title block mb-1.5">Endpoint URL</span>
+                <input value={agentConfig.externalEndpoint} onChange={(e) => setAgentConfig({ externalEndpoint: e.target.value })} placeholder="https://your-server.com/api/chat" className="input-base text-[12px]" />
               </label>
               <label className="block">
-                <span className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-1.5 block font-medium">Auth Token (optional)</span>
-                <input
-                  type="password"
-                  value={agentConfig.apiKey}
-                  onChange={(e) => setAgentConfig({ apiKey: e.target.value })}
-                  placeholder="Bearer token..."
-                  className="input-base"
-                />
+                <span className="sidebar-section-title block mb-1.5">Auth Token</span>
+                <input type="password" value={agentConfig.apiKey} onChange={(e) => setAgentConfig({ apiKey: e.target.value })} placeholder="Bearer token..." className="input-base text-[12px]" />
               </label>
               <label className="block">
-                <span className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-1.5 block font-medium">Custom Headers (JSON)</span>
-                <input
-                  value={agentConfig.customHeaders}
-                  onChange={(e) => setAgentConfig({ customHeaders: e.target.value })}
-                  placeholder='{"X-Custom": "value"}'
-                  className="input-base"
-                />
+                <span className="sidebar-section-title block mb-1.5">Custom Headers</span>
+                <input value={agentConfig.customHeaders} onChange={(e) => setAgentConfig({ customHeaders: e.target.value })} placeholder='{"X-Custom": "value"}' className="input-base text-[12px]" />
               </label>
             </>
           )}
 
-          {/* Webhook fields */}
+          {/* Webhook */}
           {agentConfig.connectionMode === "webhook" && (
             <>
               <label className="block">
-                <span className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-1.5 block font-medium">Webhook URL</span>
-                <input
-                  value={agentConfig.webhookUrl}
-                  onChange={(e) => setAgentConfig({ webhookUrl: e.target.value })}
-                  placeholder="https://hooks.your-service.com/..."
-                  className="input-base"
-                />
+                <span className="sidebar-section-title block mb-1.5">Webhook URL</span>
+                <input value={agentConfig.webhookUrl} onChange={(e) => setAgentConfig({ webhookUrl: e.target.value })} placeholder="https://hooks.your-service.com/..." className="input-base text-[12px]" />
               </label>
               <label className="block">
-                <span className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-1.5 block font-medium">Custom Headers (JSON)</span>
-                <input
-                  value={agentConfig.customHeaders}
-                  onChange={(e) => setAgentConfig({ customHeaders: e.target.value })}
-                  placeholder='{"Authorization": "Bearer ..."}'
-                  className="input-base"
-                />
+                <span className="sidebar-section-title block mb-1.5">Custom Headers</span>
+                <input value={agentConfig.customHeaders} onChange={(e) => setAgentConfig({ customHeaders: e.target.value })} placeholder='{"Authorization": "Bearer ..."}' className="input-base text-[12px]" />
               </label>
             </>
           )}
 
-          {/* Test connection */}
           <button
             onClick={testConnection}
             disabled={!isConnected || testStatus === "testing"}
@@ -275,12 +212,12 @@ export default function AgentPanel() {
         </div>
       )}
 
-      {/* Chat messages */}
+      {/* Chat */}
       <div className="flex-1 overflow-y-auto p-3 space-y-3">
         {agentMessages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-32 text-[var(--text-muted)]">
-            <p className="text-xs mb-1">Chat with your AI agent</p>
-            <p className="text-[10px] italic text-center leading-relaxed px-4">
+            <p className="text-[11px] mb-1.5">Chat with your AI agent</p>
+            <p className="text-[10px] italic text-center leading-relaxed px-4 text-[var(--text-muted)]">
               &quot;Create a card with a heading, description, and a CTA button&quot;
             </p>
           </div>
@@ -288,10 +225,10 @@ export default function AgentPanel() {
         {agentMessages.map((msg, i) => (
           <div key={i} className="animate-in">
             <div
-              className={`text-[12px] rounded-lg px-3 py-2 max-w-[92%] leading-relaxed ${
+              className={`text-[12px] rounded-xl px-3 py-2.5 max-w-[92%] leading-relaxed ${
                 msg.role === "user"
-                  ? "ml-auto bg-[var(--accent)] text-white"
-                  : "bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-color)]"
+                  ? "ml-auto bg-[var(--accent)] text-white rounded-br-sm"
+                  : "bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-bl-sm"
               }`}
             >
               <pre className="whitespace-pre-wrap font-sans text-[12px]">{msg.content}</pre>
@@ -307,30 +244,37 @@ export default function AgentPanel() {
           </div>
         ))}
         {agentLoading && (
-          <div className="bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-[12px] text-[var(--text-muted)] animate-pulse">
-            Thinking...
+          <div className="bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-xl px-3 py-2.5 text-[12px] text-[var(--text-muted)] max-w-[80%]">
+            <div className="flex gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-muted)] animate-bounce" style={{ animationDelay: "0ms" }} />
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-muted)] animate-bounce" style={{ animationDelay: "150ms" }} />
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-muted)] animate-bounce" style={{ animationDelay: "300ms" }} />
+            </div>
           </div>
         )}
         <div ref={messagesEnd} />
       </div>
 
       {/* Input */}
-      <div className="p-3 border-t border-[var(--border-color)]">
-        <div className="flex gap-2">
+      <div className="p-2.5 border-t border-[var(--border-color)]">
+        <div className="flex gap-1.5">
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
             placeholder={isConnected ? "Ask your agent..." : "Configure connection first..."}
             disabled={!isConnected}
-            className="input-base flex-1"
+            className="input-base flex-1 text-[12px]"
           />
           <button
             onClick={sendMessage}
             disabled={agentLoading || !input.trim() || !isConnected}
-            className="btn btn-primary px-4"
+            className="btn btn-primary px-3"
           >
-            Send
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13" />
+              <polygon points="22 2 15 22 11 13 2 9 22 2" />
+            </svg>
           </button>
         </div>
       </div>

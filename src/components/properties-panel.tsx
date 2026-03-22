@@ -11,9 +11,12 @@ export default function PropertiesPanel() {
 
   if (!block) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-[var(--text-muted)] px-6">
-        <div className="text-3xl mb-3 opacity-20">⚙</div>
-        <p className="text-xs text-center leading-relaxed">Select a block on the canvas to edit its properties</p>
+      <div className="flex flex-col items-center justify-center h-full text-[var(--text-muted)] px-8">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="opacity-20 mb-3">
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+        </svg>
+        <p className="text-[11px] text-center leading-relaxed">Select a block to edit its properties</p>
       </div>
     );
   }
@@ -25,16 +28,14 @@ export default function PropertiesPanel() {
     const val = (p as Record<string, unknown>)[key] ?? "";
     return (
       <label className="block mb-3">
-        <span className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-1.5 block font-medium">{label}</span>
+        <span className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-1 block font-medium">{label}</span>
         {type === "select" && options ? (
           <select
             value={String(val)}
             onChange={(e) => updateBlockProps(block.id, { [key]: e.target.value })}
-            className="input-base"
+            className="input-base text-[12px]"
           >
-            {options.map((o) => (
-              <option key={o} value={o}>{o}</option>
-            ))}
+            {options.map((o) => <option key={o} value={o}>{o}</option>)}
           </select>
         ) : type === "color" ? (
           <div className="flex gap-2 items-center">
@@ -42,13 +43,13 @@ export default function PropertiesPanel() {
               type="color"
               value={String(val) || "#000000"}
               onChange={(e) => updateBlockProps(block.id, { [key]: e.target.value })}
-              className="w-7 h-7 rounded border border-[var(--border-color)] cursor-pointer bg-transparent shrink-0"
+              className="w-7 h-7 rounded-md border border-[var(--border-color)] cursor-pointer bg-transparent shrink-0"
             />
             <input
               type="text"
               value={String(val)}
               onChange={(e) => updateBlockProps(block.id, { [key]: e.target.value })}
-              className="input-base"
+              className="input-base text-[12px]"
               placeholder="transparent"
             />
           </div>
@@ -61,7 +62,7 @@ export default function PropertiesPanel() {
                 [key]: type === "number" ? Number(e.target.value) : e.target.value,
               })
             }
-            className="input-base"
+            className="input-base text-[12px]"
           />
         )}
       </label>
@@ -71,53 +72,61 @@ export default function PropertiesPanel() {
   return (
     <div className="p-3 overflow-y-auto h-full">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <span className="text-[11px] px-2 py-1 bg-[var(--accent-muted)] text-[var(--accent-hover)] rounded font-medium">
-          {block.type}
-        </span>
-        <span className="text-[10px] text-[var(--text-muted)] font-mono">{block.id.slice(0, 8)}</span>
+      <div className="flex items-center justify-between mb-3">
+        <span className="pill pill-accent font-medium">{block.type}</span>
+        <span className="text-[9px] text-[var(--text-muted)] font-mono opacity-60">{block.id.slice(0, 8)}</span>
       </div>
 
-      {/* Quick actions */}
-      <div className="flex gap-2 mb-5">
-        <button onClick={() => duplicateBlock(block.id)} className="btn btn-ghost flex-1 text-[11px]">
-          Duplicate
-        </button>
-        <button onClick={() => removeBlock(block.id)} className="btn btn-danger-ghost flex-1 text-[11px]">
-          Delete
-        </button>
+      <div className="flex gap-1.5 mb-4">
+        <button onClick={() => duplicateBlock(block.id)} className="btn btn-ghost flex-1 text-[11px]">Duplicate</button>
+        <button onClick={() => removeBlock(block.id)} className="btn btn-danger-ghost flex-1 text-[11px]">Delete</button>
       </div>
 
-      <div className="h-px bg-[var(--border-color)] mb-4" />
+      <div className="separator" />
 
-      {/* Content fields */}
-      {["heading", "text", "button", "badge", "link"].includes(block.type) && field("Text", "text")}
-      {block.type === "heading" && field("Level", "level", "select", ["1", "2", "3", "4"])}
-      {block.type === "link" && field("URL", "href")}
+      {/* Content */}
+      {["heading", "text", "button", "badge", "link"].includes(block.type) && (
+        <div className="mb-1">
+          <p className="sidebar-section-title mt-3">Content</p>
+          {field("Text", "text")}
+          {block.type === "heading" && field("Level", "level", "select", ["1", "2", "3", "4"])}
+          {block.type === "link" && field("URL", "href")}
+        </div>
+      )}
       {block.type === "image" && (
-        <>
+        <div className="mb-1">
+          <p className="sidebar-section-title mt-3">Content</p>
           {field("Source URL", "src")}
           {field("Alt Text", "alt")}
-        </>
+        </div>
       )}
-      {block.type === "input" && field("Placeholder", "placeholder")}
+      {block.type === "input" && (
+        <div className="mb-1">
+          <p className="sidebar-section-title mt-3">Content</p>
+          {field("Placeholder", "placeholder")}
+        </div>
+      )}
 
-      {/* Layout fields */}
-      {block.type === "grid" && field("Columns", "cols", "number")}
-      {["container", "card", "flex-row", "grid"].includes(block.type) && field("Gap", "gap", "number")}
-      {["container", "card", "flex-row", "grid"].includes(block.type) && field("Padding", "padding")}
+      {/* Layout */}
+      {["container", "card", "flex-row", "grid"].includes(block.type) && (
+        <div className="mb-1">
+          <p className="sidebar-section-title mt-3">Layout</p>
+          {block.type === "grid" && field("Columns", "cols", "number")}
+          {field("Gap", "gap", "number")}
+          {field("Padding", "padding")}
+        </div>
+      )}
 
-      <div className="h-px bg-[var(--border-color)] mb-4 mt-1" />
+      <div className="separator" />
 
-      {/* Style fields */}
-      <p className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-3 font-medium">Style</p>
+      {/* Style */}
+      <p className="sidebar-section-title mt-3">Style</p>
       {field("Border Radius", "borderRadius")}
       {field("Background", "bgColor", "color")}
       {field("Text Color", "textColor", "color")}
       {field("Font Size", "fontSize")}
       {block.type === "spacer" && field("Height", "height")}
       {field("Width", "width")}
-      {field("Height", "height")}
       {field("Custom Class", "className")}
     </div>
   );
