@@ -16,7 +16,6 @@ import BlockPalette from "@/components/block-palette";
 import CanvasBlock, { BlockDragPreview } from "@/components/canvas-block";
 import PropertiesPanel from "@/components/properties-panel";
 import CodePanel from "@/components/code-panel";
-import AgentPanel from "@/components/agent-panel";
 import LayerTree from "@/components/layer-tree";
 import TemplateGallery from "@/components/template-gallery";
 import ConfirmDialog from "@/components/confirm-dialog";
@@ -184,7 +183,7 @@ function EditorInner() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
   const [dragType, setDragType] = useState<string | null>(null);
-  const [leftPanel, setLeftPanel] = useState<"blocks" | "layers" | "agent">("blocks");
+  const [leftPanel, setLeftPanel] = useState<"blocks" | "layers" | "templates">("blocks");
   const [rightPanel, setRightPanel] = useState<"properties" | "code">("properties");
   const [showImport, setShowImport] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
@@ -402,7 +401,7 @@ function EditorInner() {
   const leftPanelTabs = [
     { key: "blocks" as const, label: "Blocks", shortLabel: "Blocks", icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg> },
     { key: "layers" as const, label: "Layers", shortLabel: "Layers", icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg> },
-    { key: "agent" as const, label: "Agent", shortLabel: "Agent", icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg> },
+    { key: "templates" as const, label: "Templates", shortLabel: "Tmpls", icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg> },
   ];
 
   return (
@@ -555,7 +554,15 @@ function EditorInner() {
               <div className="flex-1 overflow-hidden">
                 {leftPanel === "blocks" && <BlockPalette />}
                 {leftPanel === "layers" && <LayerTree />}
-                {leftPanel === "agent" && <AgentPanel />}
+                {leftPanel === "templates" && (
+                  <div className="h-full">
+                    <TemplateGallery
+                      onClose={() => setLeftPanel("blocks")}
+                      onApply={(name) => toast(`"${name}" applied`, "success")}
+                      inline
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </aside>
@@ -602,7 +609,7 @@ function EditorInner() {
           <div className="flex items-center gap-2 text-[10px]" style={{ color: "var(--text-muted)" }}>
             {previewSize !== "desktop" && <span className="pill pill-accent">{PREVIEW_WIDTHS[previewSize]}</span>}
             {zoom !== 100 && <span className="pill pill-accent">{zoom}%</span>}
-            <span className="gradient-text font-semibold text-[10px]">LangChain · LangGraph · DeepAgents</span>
+            <span className="gradient-text font-semibold text-[10px]">UI Creator</span>
           </div>
         </footer>
       </div>

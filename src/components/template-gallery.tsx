@@ -661,9 +661,10 @@ const BUILT_IN_TEMPLATES: Template[] = [
 interface TemplateGalleryProps {
   onClose: () => void;
   onApply: (name: string) => void;
+  inline?: boolean;
 }
 
-export default function TemplateGallery({ onClose, onApply }: TemplateGalleryProps) {
+export default function TemplateGallery({ onClose, onApply, inline = false }: TemplateGalleryProps) {
   const addBlocksFromAgent = useEditorStore((s: ReturnType<typeof useEditorStore.getState>) => s.addBlocksFromAgent);
   const storeBlocks = useEditorStore((s: ReturnType<typeof useEditorStore.getState>) => s.blocks);
   const rootIds = useEditorStore((s: ReturnType<typeof useEditorStore.getState>) => s.rootIds);
@@ -682,10 +683,11 @@ export default function TemplateGallery({ onClose, onApply }: TemplateGalleryPro
   }, []);
 
   useEffect(() => {
+    if (inline) return;
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [onClose]);
+  }, [onClose, inline]);
 
   const allTemplates = useMemo(() => [...BUILT_IN_TEMPLATES, ...customTemplates], [customTemplates]);
 
@@ -700,7 +702,7 @@ export default function TemplateGallery({ onClose, onApply }: TemplateGalleryPro
   function applyTemplate(template: Template) {
     addBlocksFromAgent(template.blocks);
     onApply(template.name);
-    onClose();
+    if (!inline) onClose();
   }
 
   function handleSaveTemplate() {
@@ -737,6 +739,92 @@ export default function TemplateGallery({ onClose, onApply }: TemplateGalleryPro
 
   const canSave = rootIds.length > 0;
 
+  // ── Inline mode (sidebar panel) ──
+  if (inline) {
+    return (
+      <div className="flex flex-col h-full overflow-hidden">
+        {/* Search */}
+        <div className="p-2.5 shrink-0" style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+          <div className="relative">
+            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: "var(--text-muted)" }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search templates…" className="input-base w-full pl-8 pr-3 py-1.5 text-[12px]" />
+          </div>
+        </div>
+
+        {/* Category pills */}
+        <div className="px-2.5 py-2 flex flex-wrap gap-1 shrink-0" style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+          {CATEGORIES.map((cat) => (
+            <button key={cat} onClick={() => setSelectedCategory(cat)}
+              className="px-2 py-0.5 rounded-md text-[10px] transition-colors"
+              style={{
+                background: selectedCategory === cat ? "var(--accent-subtle)" : "transparent",
+                color: selectedCategory === cat ? "var(--accent)" : "var(--text-muted)",
+                border: `1px solid ${selectedCategory === cat ? "var(--accent)" : "transparent"}`,
+              }}>
+              {cat}
+            </button>
+          ))}
+        </div>
+
+        {/* Save current button */}
+        {canSave && (
+          <div className="px-2.5 py-2 shrink-0" style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+            <button onClick={() => setShowSaveForm((v) => !v)} className="btn btn-ghost w-full text-[11px] gap-1.5 justify-center">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+              Save canvas as template
+            </button>
+            {showSaveForm && (
+              <div className="mt-2 space-y-2">
+                <input value={saveName} onChange={(e) => setSaveName(e.target.value)} placeholder="Template name" className="input-base w-full text-[11px] px-2.5 py-1.5" />
+                <input value={saveDesc} onChange={(e) => setSaveDesc(e.target.value)} placeholder="Description (optional)" className="input-base w-full text-[11px] px-2.5 py-1.5" />
+                <div className="flex gap-1.5">
+                  <button onClick={handleSaveTemplate} disabled={!saveName.trim()} className="btn btn-primary text-[10px] flex-1">Save</button>
+                  <button onClick={() => setShowSaveForm(false)} className="btn btn-ghost text-[10px]">Cancel</button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Template list */}
+        <div className="flex-1 overflow-y-auto p-2.5 space-y-1.5">
+          {filtered.length === 0 ? (
+            <p className="text-[11px] text-center mt-6" style={{ color: "var(--text-muted)" }}>No templates found</p>
+          ) : (
+            filtered.map((template) => {
+              const cs = getColorStyle(template.color);
+              return (
+                <button key={template.id} onClick={() => applyTemplate(template)}
+                  className="w-full text-left p-2.5 rounded-lg transition-all group"
+                  style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)" }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--accent)"; (e.currentTarget as HTMLElement).style.background = "var(--accent-subtle)"; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-color)"; (e.currentTarget as HTMLElement).style.background = "var(--bg-tertiary)"; }}>
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center text-[14px] shrink-0" style={{ background: cs.iconGradient }}>
+                      {template.icon}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] font-medium truncate" style={{ color: "var(--text-primary)" }}>{template.name}</p>
+                      <p className="text-[9.5px] truncate" style={{ color: "var(--text-muted)" }}>{template.description}</p>
+                    </div>
+                    {!template.builtIn && (
+                      <button className="shrink-0 w-5 h-5 rounded flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        style={{ color: "var(--text-muted)" }}
+                        onClick={(e) => { e.stopPropagation(); deleteCustomTemplate(template.id); }}>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+                      </button>
+                    )}
+                  </div>
+                </button>
+              );
+            })
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Modal mode (overlay) ──
   return (
     <div className="overlay-backdrop" onClick={onClose}>
       <div
