@@ -14,12 +14,23 @@ function parseAgentBlocks(text: string): AgentBlockDescription[] | null {
   try {
     const parsed = JSON.parse(jsonMatch[1]);
     const arr = Array.isArray(parsed) ? parsed : [parsed];
+    const RESERVED_KEYS = new Set(["type", "props", "children"]);
     function validate(desc: unknown): AgentBlockDescription | null {
       if (!desc || typeof desc !== "object") return null;
       const d = desc as Record<string, unknown>;
       if (!VALID_TYPES.has(d.type as string)) return null;
       const result: AgentBlockDescription = { type: d.type as BlockType };
-      if (d.props && typeof d.props === "object") result.props = d.props as AgentBlockDescription["props"];
+      // Support both { props: {...} } and flat props like { text: "Hello", type: "heading" }
+      if (d.props && typeof d.props === "object") {
+        result.props = d.props as AgentBlockDescription["props"];
+      } else {
+        // Extract any non-reserved keys as props (handles LLM returning flat format)
+        const flatProps: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(d)) {
+          if (!RESERVED_KEYS.has(k) && v !== undefined) flatProps[k] = v;
+        }
+        if (Object.keys(flatProps).length > 0) result.props = flatProps as AgentBlockDescription["props"];
+      }
       if (Array.isArray(d.children)) result.children = d.children.map(validate).filter(Boolean) as AgentBlockDescription[];
       return result;
     }

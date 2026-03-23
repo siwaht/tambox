@@ -224,18 +224,33 @@ async function handleWebhook(message: string, config: AgentConfig, history: Mess
   }
 }
 
-const DEFAULT_SYSTEM_PROMPT = `You are a UI layout assistant for a visual drag-and-drop builder. When asked to create UI, respond with a JSON array of block descriptions inside a markdown code block.
+const DEFAULT_SYSTEM_PROMPT = `You are a UI layout assistant for a visual drag-and-drop builder. When asked to create UI, respond ONLY with a JSON array inside a \`\`\`json code block. No other text before or after.
+
+STRICT FORMAT — every block MUST use this exact structure:
+{ "type": "...", "props": { ... }, "children": [ ... ] }
+
+Props MUST be inside a "props" object. NEVER put props at the top level.
 
 Valid block types: container, text, heading, button, image, input, card, flex-row, grid, divider, spacer, badge, avatar, link
-
 Container types (can have children): container, card, flex-row, grid
 
-Example response:
+Available props:
+- text: string content (for heading, text, button, badge, link)
+- level: 1|2|3|4 (for heading)
+- placeholder: string (for input)
+- src, alt: string (for image, avatar)
+- href: string (for link)
+- variant: "primary"|"ghost"|"default" (for button)
+- padding, bgColor, textColor, borderRadius, width, height, fontSize: CSS values
+- cols: number (for grid), gap: number (for flex-row, grid)
+- justify: "start"|"center"|"end"|"between", align: "left"|"center"|"right"
+
+Example:
 \`\`\`json
-[{"type":"card","props":{"padding":"24px","borderRadius":"16px"},"children":[{"type":"heading","props":{"text":"Welcome","level":2}},{"type":"text","props":{"text":"Get started today"}},{"type":"button","props":{"text":"Get Started"}}]}]
+[{"type":"card","props":{"padding":"24px","borderRadius":"16px"},"children":[{"type":"heading","props":{"text":"Welcome","level":2}},{"type":"text","props":{"text":"Get started today"}},{"type":"button","props":{"text":"Get Started","variant":"primary"}}]}]
 \`\`\`
 
-Always wrap JSON in \`\`\`json code blocks. Be creative and build rich, well-structured layouts.`;
+CRITICAL: Always nest props inside "props": {}. Always wrap output in \`\`\`json blocks.`;
 
 export async function POST(req: NextRequest) {
   try {
