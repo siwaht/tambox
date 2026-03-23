@@ -109,13 +109,23 @@ export default function AgentPanel() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: userMsg, config: agentConfig, history: agentMessages }),
       });
+      if (!res.ok) {
+        const errText = await res.text();
+        addAgentMessage({ role: "assistant", content: `API error (${res.status}): ${errText}` });
+        return;
+      }
       const data = await res.json();
-      const responseText = data.response || data.error || "No response";
+      const responseText = data.response || data.error || "No response from agent — check console for details.";
+      if (!data.response && !data.error) {
+        console.error("[Agent] Unexpected API response:", data);
+      }
       addAgentMessage({ role: "assistant", content: responseText });
       const blocks = parseAgentBlocks(responseText);
       if (blocks) addBlocksFromAgent(blocks);
     } catch (err) {
-      addAgentMessage({ role: "assistant", content: `Error: ${err instanceof Error ? err.message : "Unknown error"}` });
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      console.error("[Agent] Fetch error:", err);
+      addAgentMessage({ role: "assistant", content: `Connection error: ${msg}. Is the dev server running?` });
     } finally {
       setAgentLoading(false);
     }

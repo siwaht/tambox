@@ -272,6 +272,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Message is required." });
     }
 
+    console.log(`[Agent] Received: "${message.substring(0, 50)}..." mode=${config.connectionMode} type=${config.type} model=${config.model}`);
+
     let response: string;
 
     // Route to appropriate handler
@@ -305,6 +307,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ response });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown server error";
+    console.error("[Agent] Error:", message);
     return NextResponse.json({ error: `Agent error: ${message}` });
   }
 }
