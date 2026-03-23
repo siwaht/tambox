@@ -2,7 +2,7 @@
 
 import { useDraggable } from "@dnd-kit/core";
 import { BlockType } from "@/store/editor-store";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 
 const ALL_BLOCKS = [
   { type: "container" as BlockType, label: "Container", icon: "⬜", category: "Layout" },
@@ -74,6 +74,10 @@ function DraggableBlock({ type, label, icon }: { type: BlockType; label: string;
 export default function BlockPalette() {
   const [search, setSearch] = useState("");
 
+  const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearch(e.target.value);
+  }, []);
+
   const filtered = useMemo(() => {
     if (!search.trim()) return null;
     const q = search.toLowerCase();
@@ -90,8 +94,12 @@ export default function BlockPalette() {
             fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ color: "var(--text-muted)" }}>
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
-          <input value={search} onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search blocks..." className="input-base text-[12px] py-1.5 pl-8" />
+          <input
+            defaultValue=""
+            onChange={handleSearch}
+            placeholder="Search blocks..."
+            className="input-base text-[12px] py-1.5 pl-8"
+          />
         </div>
       </div>
 

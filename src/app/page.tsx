@@ -21,6 +21,7 @@ import LayerTree from "@/components/layer-tree";
 import TemplateGallery from "@/components/template-gallery";
 import ConfirmDialog from "@/components/confirm-dialog";
 import { ToastProvider, useToast } from "@/components/toast";
+import ErrorBoundary from "@/components/error-boundary";
 import { useState, useEffect, useRef, useCallback } from "react";
 
 type PreviewSize = "desktop" | "tablet" | "mobile";
@@ -656,5 +657,9 @@ function EditorInner() {
 }
 
 export default function EditorPage() {
-  return <ToastProvider><EditorInner /></ToastProvider>;
+  return (
+    <ErrorBoundary>
+      <ToastProvider><EditorInner /></ToastProvider>
+    </ErrorBoundary>
+  );
 }
