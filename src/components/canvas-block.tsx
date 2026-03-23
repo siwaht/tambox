@@ -1,7 +1,16 @@
 "use client";
 
 import { useEditorStore, Block, isContainerType } from "@/store/editor-store";
-import { useDraggable, useDroppable } from "@dnd-kit/core";
+import {
+  useDraggable,
+  useDroppable,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import React from "react";
 
 function BlockContent({ block }: { block: Block }) {
@@ -60,7 +69,6 @@ function BlockContent({ block }: { block: Block }) {
     case "link":
       return <span className="text-sm cursor-pointer underline underline-offset-2"
         style={{ color: "var(--accent-hover)", ...customStyle }}>{p.text}</span>;
-    // ── Tambo AI Agent blocks ──
     case "code-block":
       return (
         <div className="rounded-lg overflow-hidden" style={{ background: "#0d0d12", border: "1px solid var(--border-color)" }}>
@@ -236,29 +244,44 @@ function BlockContent({ block }: { block: Block }) {
   }
 }
 
-export default function CanvasBlock({ id, depth = 0 }: { id: string; depth?: number }) {
+// ── Sortable canvas block (used inside sortable lists) ──
+export default function CanvasBlock({ id, depth = 0, inFlexRow = false }: { id: string; depth?: number; inFlexRow?: boolean }) {
   const block = useEditorStore((s) => s.blocks[id]);
   const selectedId = useEditorStore((s) => s.selectedId);
   const selectBlock = useEditorStore((s) => s.selectBlock);
   const removeBlock = useEditorStore((s) => s.removeBlock);
   const duplicateBlock = useEditorStore((s) => s.duplicateBlock);
 
-  const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({
-    id: `canvas-${id}`,
-    data: { blockId: id, fromPalette: false },
-  });
-
   const isContainer = block ? isContainerType(block.type) : false;
 
-  const { setNodeRef: setDropRef, isOver } = useDroppable({
-    id: `drop-${id}`,
-    data: { blockId: id },
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: `canvas-${id}`,
+    data: { blockId: id, fromPalette: false, type: block?.type },
+  });
+
+  // Container drop zone (for dropping INTO containers)
+  const { setNodeRef: setContainerDropRef, isOver: isOverContainer } = useDroppable({
+    id: `container-${id}`,
+    data: { blockId: id, isContainer: true },
     disabled: !isContainer,
   });
 
   if (!block) return null;
 
   const isSelected = selectedId === id;
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.35 : 1,
+  };
 
   const containerStyles: Record<string, React.CSSProperties> = {
     container: {
@@ -274,6 +297,7 @@ export default function CanvasBlock({ id, depth = 0 }: { id: string; depth?: num
     },
     "flex-row": {
       display: "flex",
+      flexWrap: "wrap",
       alignItems: "center",
       gap: `${block.props.gap || 12}px`,
       padding: block.props.padding,
@@ -340,71 +364,104 @@ export default function CanvasBlock({ id, depth = 0 }: { id: string; depth?: num
     boxShadow: "0 0 0 4px var(--accent-subtle)",
   } : {};
 
+  const containerDropStyle: React.CSSProperties = isOverContainer && isContainer ? {
+    outline: "2px dashed var(--accent)",
+    backgroundColor: "var(--accent-subtle)",
+  } : {};
+
   return (
     <div
-      ref={(node) => { setDragRef(node); if (isContainer) setDropRef(node); }}
-      {...attributes}
-      {...listeners}
-      onClick={(e) => { e.stopPropagation(); selectBlock(id); }}
-      className={`relative group cursor-grab active:cursor-grabbing transition-all duration-150 ${isDragging ? "opacity-20 scale-[0.98]" : ""} ${isContainer ? "rounded-xl" : "rounded-lg"}`}
+      ref={setNodeRef}
+      style={{ ...style, ...(inFlexRow ? { flex: "1 1 0", minWidth: 0 } : {}) }}
+      className="relative group"
+    >
+      <div
+        ref={isContainer ? setContainerDropRef : undefined}
+        {...attributes}
+        {...listeners}
+        onClick={(e) => { e.stopPropagation(); selectBlock(id); }}
+        className={`relative cursor-grab active:cursor-grabbing transition-all duration-150 ${isContainer ? "rounded-xl" : "rounded-lg"}`}
+        style={{
+          ...(isContainer ? containerStyles[block.type] : {}),
+          ...selectedStyle,
+          ...containerDropStyle,
+          ...(!isSelected && !isOverContainer ? { outline: "1px solid transparent" } : {}),
+        }}
+        onMouseEnter={(e) => {
+          if (!isSelected) (e.currentTarget as HTMLElement).style.outline = "1px solid var(--accent-glow)";
+        }}
+        onMouseLeave={(e) => {
+          if (!isSelected) (e.currentTarget as HTMLElement).style.outline = "1px solid transparent";
+        }}
+      >
+        {/* Type label */}
+        <div className={`absolute -top-5 left-1.5 text-[9px] uppercase tracking-wider font-semibold pointer-events-none z-10 transition-colors
+          ${isSelected ? "" : "text-transparent group-hover:text-[var(--text-muted)]"}`}
+          style={{ color: isSelected ? "var(--accent)" : undefined }}>
+          {block.type}
+        </div>
+
+        {/* Action buttons */}
+        {isSelected && (
+          <div className="absolute -top-3 -right-3 flex gap-0.5 z-20 animate-in">
+            <button onClick={(e) => { e.stopPropagation(); duplicateBlock(id); }}
+              className="w-6 h-6 flex items-center justify-center rounded-lg text-[10px] transition-all shadow-sm"
+              style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-color)", color: "var(--text-muted)" }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--accent)"; (e.currentTarget as HTMLElement).style.color = "var(--accent)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-color)"; (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; }}
+              onPointerDown={(e) => e.stopPropagation()} title="Duplicate">⧉</button>
+            <button onClick={(e) => { e.stopPropagation(); removeBlock(id); }}
+              className="w-6 h-6 flex items-center justify-center rounded-lg text-[10px] transition-all shadow-sm"
+              style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-color)", color: "var(--text-muted)" }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--danger)"; (e.currentTarget as HTMLElement).style.color = "var(--danger)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-color)"; (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; }}
+              onPointerDown={(e) => e.stopPropagation()} title="Delete">×</button>
+          </div>
+        )}
+
+        {/* Content */}
+        {isContainer ? (
+          <div className={`min-h-[52px] ${block.children.length === 0 ? "flex items-center justify-center" : ""}`}>
+            {block.children.length === 0 ? (
+              <span className="text-[11px] italic select-none" style={{ color: "var(--text-muted)" }}>
+                Drop blocks here
+              </span>
+            ) : (
+              <SortableContext
+                items={block.children.map((cid) => `canvas-${cid}`)}
+                strategy={verticalListSortingStrategy}
+              >
+                {block.children.map((childId: string) => (
+                  <CanvasBlock key={childId} id={childId} depth={depth + 1} inFlexRow={block.type === "flex-row"} />
+                ))}
+              </SortableContext>
+            )}
+          </div>
+        ) : (
+          <div className="p-2">
+            <BlockContent block={block} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Drag overlay preview (shown while dragging) ──
+export function BlockDragPreview({ type }: { type: string }) {
+  return (
+    <div
+      className="px-3 py-2 rounded-lg text-[12px] font-medium shadow-2xl pointer-events-none select-none flex items-center gap-2"
       style={{
-        ...(isContainer ? containerStyles[block.type] : {}),
-        ...selectedStyle,
-        ...(isOver && isContainer ? { outline: "2px dashed var(--accent)", backgroundColor: "var(--accent-subtle)" } : {}),
-        ...(!isSelected && !isOver ? { outline: "1px solid transparent" } : {}),
-      }}
-      onMouseEnter={(e) => {
-        if (!isSelected) (e.currentTarget as HTMLElement).style.outline = "1px solid var(--accent-glow)";
-      }}
-      onMouseLeave={(e) => {
-        if (!isSelected) (e.currentTarget as HTMLElement).style.outline = "1px solid transparent";
+        background: "var(--gradient-accent)",
+        color: "white",
+        border: "1px solid var(--accent)",
+        boxShadow: "0 8px 32px var(--accent-glow)",
+        minWidth: 80,
       }}
     >
-      {/* Type label */}
-      <div className={`absolute -top-5 left-1.5 text-[9px] uppercase tracking-wider font-semibold pointer-events-none z-10 transition-colors
-        ${isSelected ? "" : "text-transparent group-hover:text-[var(--text-muted)]"}`}
-        style={{ color: isSelected ? "var(--accent)" : undefined }}>
-        {block.type}
-      </div>
-
-      {/* Action buttons */}
-      {isSelected && (
-        <div className="absolute -top-3 -right-3 flex gap-0.5 z-20 animate-in">
-          <button onClick={(e) => { e.stopPropagation(); duplicateBlock(id); }}
-            className="w-6 h-6 flex items-center justify-center rounded-lg text-[10px] transition-all shadow-sm"
-            style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-color)", color: "var(--text-muted)" }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--accent)"; (e.currentTarget as HTMLElement).style.color = "var(--accent)"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-color)"; (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; }}
-            onPointerDown={(e) => e.stopPropagation()} title="Duplicate">⧉</button>
-          <button onClick={(e) => { e.stopPropagation(); removeBlock(id); }}
-            className="w-6 h-6 flex items-center justify-center rounded-lg text-[10px] transition-all shadow-sm"
-            style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-color)", color: "var(--text-muted)" }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--danger)"; (e.currentTarget as HTMLElement).style.color = "var(--danger)"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-color)"; (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; }}
-            onPointerDown={(e) => e.stopPropagation()} title="Delete">×</button>
-        </div>
-      )}
-
-      {/* Content */}
-      {isContainer ? (
-        <div className={`min-h-[52px] ${block.children.length === 0 ? "flex items-center justify-center" : ""}`}>
-          {block.children.length === 0 ? (
-            <span className="text-[11px] italic select-none" style={{ color: "var(--text-muted)" }}>
-              Drop blocks here
-            </span>
-          ) : (
-            block.children.map((childId: string) => (
-              <div key={childId} className="my-1">
-                <CanvasBlock id={childId} depth={depth + 1} />
-              </div>
-            ))
-          )}
-        </div>
-      ) : (
-        <div className="p-2">
-          <BlockContent block={block} />
-        </div>
-      )}
+      <span style={{ opacity: 0.8 }}>⠿</span>
+      {type}
     </div>
   );
 }
