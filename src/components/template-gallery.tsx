@@ -370,9 +370,9 @@ interface TemplateGalleryProps {
 }
 
 export default function TemplateGallery({ onClose, onApply }: TemplateGalleryProps) {
-  const addBlocksFromAgent = useEditorStore((s) => s.addBlocksFromAgent);
-  const storeBlocks = useEditorStore((s) => s.blocks);
-  const rootIds = useEditorStore((s) => s.rootIds);
+  const addBlocksFromAgent = useEditorStore((s: ReturnType<typeof useEditorStore.getState>) => s.addBlocksFromAgent);
+  const storeBlocks = useEditorStore((s: ReturnType<typeof useEditorStore.getState>) => s.blocks);
+  const rootIds = useEditorStore((s: ReturnType<typeof useEditorStore.getState>) => s.rootIds);
 
   const [customTemplates, setCustomTemplates] = useState<Template[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("All");
