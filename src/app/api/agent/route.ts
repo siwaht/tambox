@@ -15,11 +15,19 @@ interface AgentConfig {
 
 interface Message { role: "user" | "assistant"; content: string; }
 
+// Build the effective system prompt: always use DEFAULT_SYSTEM_PROMPT, append user's custom prompt if provided
+function buildSystemPrompt(userPrompt?: string): string {
+  if (!userPrompt || userPrompt.trim() === "") return DEFAULT_SYSTEM_PROMPT;
+  // If user provided a custom prompt, append it after the core instructions
+  return `${DEFAULT_SYSTEM_PROMPT}\n\nAdditional instructions:\n${userPrompt.trim()}`;
+}
+
 // ── LangChain built-in handler ──
 async function handleLangChain(message: string, config: AgentConfig, history: Message[]): Promise<string> {
   const isAnthropic = config.model?.toLowerCase().includes("claude");
+  const systemPrompt = buildSystemPrompt(config.systemPrompt);
   const messages = [
-    { role: "system" as const, content: config.systemPrompt || DEFAULT_SYSTEM_PROMPT },
+    { role: "system" as const, content: systemPrompt },
     ...history.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
     { role: "user" as const, content: message },
   ];
@@ -35,7 +43,7 @@ async function handleLangChain(message: string, config: AgentConfig, history: Me
       body: JSON.stringify({
         model: config.model || "claude-sonnet-4-6",
         max_tokens: 4096,
-        system: config.systemPrompt || DEFAULT_SYSTEM_PROMPT,
+        system: systemPrompt,
         messages: messages.filter((m) => m.role !== "system"),
       }),
     });
@@ -61,7 +69,7 @@ async function handleLangGraph(message: string, config: AgentConfig, history: Me
   const isAnthropic = config.model?.toLowerCase().includes("claude");
 
   // LangGraph system prompt includes graph-aware reasoning
-  const graphSystemPrompt = `${config.systemPrompt || DEFAULT_SYSTEM_PROMPT}
+  const graphSystemPrompt = `${buildSystemPrompt(config.systemPrompt)}
 
 You are operating as a LangGraph stateful agent. You can reason in multiple steps:
 1. PLAN: Analyze the request and plan the UI structure
@@ -111,7 +119,7 @@ Always output your final JSON in a \`\`\`json code block.`;
 async function handleDeepAgents(message: string, config: AgentConfig, history: Message[]): Promise<string> {
   const isAnthropic = config.model?.toLowerCase().includes("claude");
 
-  const deepSystemPrompt = `${config.systemPrompt || DEFAULT_SYSTEM_PROMPT}
+  const deepSystemPrompt = `${buildSystemPrompt(config.systemPrompt)}
 
 You are a DeepAgent with advanced reasoning capabilities. For UI generation:
 - Think deeply about the user's intent and design goals
