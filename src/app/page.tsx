@@ -11,7 +11,7 @@ import {
   verticalListSortingStrategy,
   arrayMove,
 } from "@dnd-kit/sortable";
-import { useEditorStore, BlockType } from "@/store/editor-store";
+import { useEditorStore, BlockType, autoLoad } from "@/store/editor-store";
 import BlockPalette from "@/components/block-palette";
 import CanvasBlock, { BlockDragPreview } from "@/components/canvas-block";
 import PropertiesPanel from "@/components/properties-panel";
@@ -198,6 +198,13 @@ function EditorInner() {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } })
   );
+
+  useEffect(() => {
+    const saved = autoLoad();
+    if (saved && saved.blocks && saved.rootIds) {
+      useEditorStore.setState({ blocks: saved.blocks, rootIds: saved.rootIds });
+    }
+  }, []);
 
   useEffect(() => { document.documentElement.setAttribute("data-theme", theme); }, [theme]);
 

@@ -209,7 +209,7 @@ function autoSave(state: TrackedState) {
   } catch { /* noop */ }
 }
 
-function autoLoad(): Partial<TrackedState> | null {
+export function autoLoad(): Partial<TrackedState> | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
@@ -577,13 +577,7 @@ export const useEditorStore = create<EditorState>()(
   )
 );
 
-// Initialize from localStorage on client
-if (typeof window !== "undefined") {
-  const saved = autoLoad();
-  if (saved && saved.blocks && saved.rootIds) {
-    useEditorStore.setState({ blocks: saved.blocks, rootIds: saved.rootIds });
-  }
-}
+// localStorage initialization is handled in the component via useEffect to avoid hydration mismatches
 
 // ── Code generation ──
 export function generateCode(state: Pick<EditorState, "blocks" | "rootIds" | "agentConfig">): string {
