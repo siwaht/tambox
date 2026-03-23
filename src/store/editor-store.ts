@@ -220,10 +220,8 @@ export function autoLoad(): Partial<TrackedState> | null {
   return null;
 }
 
-const DEFAULT_SYSTEM_PROMPT = `You are a UI layout assistant. When asked to create UI, respond with a JSON array of block descriptions inside a markdown code block. Valid types: container, text, heading, button, image, input, card, flex-row, grid, divider, spacer, badge, avatar, link. Example:
-\`\`\`json
-[{"type":"card","props":{"padding":"16px"},"children":[{"type":"heading","props":{"text":"Title"}},{"type":"text","props":{"text":"Description"}}]}]
-\`\`\``;
+// System prompt is defined in route.ts — leave this empty so the route's prompt is used as fallback
+const DEFAULT_SYSTEM_PROMPT = "";
 
 export const useEditorStore = create<EditorState>()(
   temporal(
