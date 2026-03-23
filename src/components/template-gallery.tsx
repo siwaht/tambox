@@ -355,10 +355,10 @@ export default function TemplateGallery({ onClose, onApply }: { onClose: () => v
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border-color)]">
+          <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid var(--border-color)" }}>
             <div>
-              <h2 className="text-[14px] font-semibold text-[var(--text-primary)]">Templates</h2>
-              <p className="text-[11px] text-[var(--text-muted)] mt-0.5">Start with a pre-built layout or use your own</p>
+              <h2 className="text-[14px] font-semibold" style={{ color: "var(--text-primary)" }}>Templates</h2>
+              <p className="text-[11px] mt-0.5" style={{ color: "var(--text-muted)" }}>Start with a pre-built layout or save your own</p>
             </div>
             <div className="flex items-center gap-2">
               {tab === "my-templates" && canSave && (

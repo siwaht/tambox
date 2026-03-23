@@ -16,43 +16,50 @@ function BlockContent({ block }: { block: Block }) {
       return <div className={`${sizes[p.level || 2]} font-bold leading-tight`} style={customStyle}>{p.text}</div>;
     }
     case "text":
-      return <p className="text-sm text-[var(--text-primary)] leading-relaxed" style={customStyle}>{p.text}</p>;
+      return <p className="text-sm leading-relaxed" style={{ color: "var(--text-primary)", ...customStyle }}>{p.text}</p>;
     case "button":
       return (
-        <button
-          className="px-4 py-2 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white rounded-md text-sm font-medium transition pointer-events-none shadow-sm"
-          style={{ borderRadius: p.borderRadius, ...customStyle }}
-        >
+        <button className="px-4 py-2 text-white text-sm font-medium transition pointer-events-none shadow-sm"
+          style={{ background: "var(--gradient-accent)", borderRadius: p.borderRadius || "8px", ...customStyle }}>
           {p.text}
         </button>
       );
     case "image":
-      return <img src={p.src} alt={p.alt} className="rounded-lg max-w-full h-auto" style={{ borderRadius: p.borderRadius }} />;
+      return <img src={p.src} alt={p.alt} className="max-w-full h-auto" style={{ borderRadius: p.borderRadius || "8px" }} />;
     case "input":
       return (
-        <input
-          placeholder={p.placeholder}
-          className="w-full px-3 py-2 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-md text-sm text-[var(--text-primary)] pointer-events-none"
-          style={{ borderRadius: p.borderRadius }}
-          readOnly
-        />
+        <input placeholder={p.placeholder}
+          className="w-full px-3 py-2 text-sm pointer-events-none"
+          style={{
+            background: "var(--bg-primary)",
+            border: "1px solid var(--border-color)",
+            borderRadius: p.borderRadius || "8px",
+            color: "var(--text-primary)",
+          }}
+          readOnly />
       );
     case "divider":
-      return <hr className="border-[var(--border-color)]" />;
+      return <hr style={{ borderColor: "var(--border-color)" }} />;
     case "spacer":
-      return <div style={{ height: p.height || "24px" }} className="relative">
-        <div className="absolute inset-x-0 top-1/2 border-t border-dashed border-[var(--border-subtle)] opacity-0 group-hover:opacity-100 transition" />
-      </div>;
+      return (
+        <div style={{ height: p.height || "24px" }} className="relative group/spacer">
+          <div className="absolute inset-x-0 top-1/2 border-t border-dashed opacity-0 group-hover/spacer:opacity-100 transition"
+            style={{ borderColor: "var(--accent-glow)" }} />
+        </div>
+      );
     case "badge":
       return (
-        <span className="inline-block px-2.5 py-0.5 text-xs font-medium bg-[var(--accent-muted)] text-[var(--accent-hover)] rounded-full">
+        <span className="inline-block px-2.5 py-0.5 text-xs font-medium rounded-full"
+          style={{ background: "var(--accent-muted)", color: "var(--accent-hover)" }}>
           {p.text}
         </span>
       );
     case "avatar":
-      return <img src={p.src} alt={p.alt} className="w-10 h-10 rounded-full ring-2 ring-[var(--border-color)]" />;
+      return <img src={p.src} alt={p.alt} className="w-10 h-10 rounded-full"
+        style={{ outline: "2px solid var(--border-color)", outlineOffset: "2px" }} />;
     case "link":
-      return <span className="text-[var(--accent-hover)] underline underline-offset-2 text-sm cursor-pointer" style={customStyle}>{p.text}</span>;
+      return <span className="text-sm cursor-pointer underline underline-offset-2"
+        style={{ color: "var(--accent-hover)", ...customStyle }}>{p.text}</span>;
     default:
       return null;
   }
@@ -89,7 +96,7 @@ export default function CanvasBlock({ id, depth = 0 }: { id: string; depth?: num
       backgroundColor: block.props.bgColor && block.props.bgColor !== "transparent" ? block.props.bgColor : undefined,
     },
     card: {
-      padding: block.props.padding,
+      padding: block.props.padding || "16px",
       borderRadius: block.props.borderRadius || "12px",
       background: block.props.bgColor || "var(--bg-tertiary)",
       border: "1px solid var(--border-color)",
@@ -108,64 +115,65 @@ export default function CanvasBlock({ id, depth = 0 }: { id: string; depth?: num
     },
   };
 
+  const selectedStyle: React.CSSProperties = isSelected ? {
+    outline: "2px solid var(--accent)",
+    boxShadow: "0 0 0 4px var(--accent-subtle)",
+  } : {};
+
   return (
     <div
-      ref={(node) => {
-        setDragRef(node);
-        if (isContainer) setDropRef(node);
-      }}
+      ref={(node) => { setDragRef(node); if (isContainer) setDropRef(node); }}
       {...attributes}
       {...listeners}
       onClick={(e) => { e.stopPropagation(); selectBlock(id); }}
-      className={`relative group cursor-grab active:cursor-grabbing transition-all duration-150
-        ${isDragging ? "opacity-20 scale-[0.98]" : ""}
-        ${isSelected
-          ? "ring-[1.5px] ring-[var(--accent)] shadow-[0_0_0_3px_var(--accent-subtle)]"
-          : "hover:ring-1 hover:ring-[var(--accent-glow)]"
-        }
-        ${isOver && isContainer ? "ring-2 ring-dashed ring-[var(--accent)]/40 bg-[var(--accent-subtle)]" : ""}
-        ${isContainer ? "rounded-lg" : "rounded-md"}
-      `}
-      style={isContainer ? containerStyles[block.type] : undefined}
+      className={`relative group cursor-grab active:cursor-grabbing transition-all duration-150 ${isDragging ? "opacity-20 scale-[0.98]" : ""} ${isContainer ? "rounded-xl" : "rounded-lg"}`}
+      style={{
+        ...(isContainer ? containerStyles[block.type] : {}),
+        ...selectedStyle,
+        ...(isOver && isContainer ? { outline: "2px dashed var(--accent)", background: "var(--accent-subtle)" } : {}),
+        ...(!isSelected && !isOver ? { outline: "1px solid transparent" } : {}),
+      }}
+      onMouseEnter={(e) => {
+        if (!isSelected) (e.currentTarget as HTMLElement).style.outline = "1px solid var(--accent-glow)";
+      }}
+      onMouseLeave={(e) => {
+        if (!isSelected) (e.currentTarget as HTMLElement).style.outline = "1px solid transparent";
+      }}
     >
       {/* Type label */}
-      <div
-        className={`absolute -top-5 left-1.5 text-[9px] uppercase tracking-wider font-semibold
-          ${isSelected ? "text-[var(--accent)]" : "text-transparent group-hover:text-[var(--text-muted)]"}
-          transition-colors pointer-events-none z-10`}
-      >
+      <div className={`absolute -top-5 left-1.5 text-[9px] uppercase tracking-wider font-semibold pointer-events-none z-10 transition-colors
+        ${isSelected ? "" : "text-transparent group-hover:text-[var(--text-muted)]"}`}
+        style={{ color: isSelected ? "var(--accent)" : undefined }}>
         {block.type}
       </div>
 
-      {/* Actions */}
+      {/* Action buttons */}
       {isSelected && (
-        <div className="absolute -top-2.5 -right-2.5 flex gap-0.5 z-20 animate-in">
-          <button
-            onClick={(e) => { e.stopPropagation(); duplicateBlock(id); }}
-            className="w-[22px] h-[22px] bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--text-muted)] rounded-md text-[10px] flex items-center justify-center hover:text-[var(--accent)] hover:border-[var(--accent)] hover:shadow-sm transition"
-            onPointerDown={(e) => e.stopPropagation()}
-            title="Duplicate"
-          >
-            ⧉
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); removeBlock(id); }}
-            className="w-[22px] h-[22px] bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--text-muted)] rounded-md text-[10px] flex items-center justify-center hover:text-[var(--danger)] hover:border-[var(--danger)] hover:shadow-sm transition"
-            onPointerDown={(e) => e.stopPropagation()}
-            title="Delete"
-          >
-            ×
-          </button>
+        <div className="absolute -top-3 -right-3 flex gap-0.5 z-20 animate-in">
+          <button onClick={(e) => { e.stopPropagation(); duplicateBlock(id); }}
+            className="w-6 h-6 flex items-center justify-center rounded-lg text-[10px] transition-all shadow-sm"
+            style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-color)", color: "var(--text-muted)" }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--accent)"; (e.currentTarget as HTMLElement).style.color = "var(--accent)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-color)"; (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; }}
+            onPointerDown={(e) => e.stopPropagation()} title="Duplicate">⧉</button>
+          <button onClick={(e) => { e.stopPropagation(); removeBlock(id); }}
+            className="w-6 h-6 flex items-center justify-center rounded-lg text-[10px] transition-all shadow-sm"
+            style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-color)", color: "var(--text-muted)" }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--danger)"; (e.currentTarget as HTMLElement).style.color = "var(--danger)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-color)"; (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; }}
+            onPointerDown={(e) => e.stopPropagation()} title="Delete">×</button>
         </div>
       )}
 
       {/* Content */}
       {isContainer ? (
-        <div className={`min-h-[48px] ${block.children.length === 0 ? "flex items-center justify-center" : ""}`}>
+        <div className={`min-h-[52px] ${block.children.length === 0 ? "flex items-center justify-center" : ""}`}>
           {block.children.length === 0 ? (
-            <span className="text-[11px] text-[var(--text-muted)] italic select-none">Drop blocks here</span>
+            <span className="text-[11px] italic select-none" style={{ color: "var(--text-muted)" }}>
+              Drop blocks here
+            </span>
           ) : (
-            block.children.map((childId) => (
+            block.children.map((childId: string) => (
               <div key={childId} className="my-1">
                 <CanvasBlock id={childId} depth={depth + 1} />
               </div>

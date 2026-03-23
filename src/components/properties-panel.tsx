@@ -2,6 +2,13 @@
 
 import { useEditorStore } from "@/store/editor-store";
 
+const TYPE_COLORS: Record<string, string> = {
+  container: "var(--accent)", card: "var(--accent)", "flex-row": "var(--accent)", grid: "var(--accent)",
+  heading: "var(--accent-2)", text: "var(--accent-2)", image: "var(--accent-2)", link: "var(--accent-2)",
+  button: "#22d3a0", input: "#22d3a0",
+  divider: "#fbbf24", spacer: "#fbbf24", badge: "#fbbf24", avatar: "#fbbf24",
+};
+
 export default function PropertiesPanel() {
   const selectedId = useEditorStore((s) => s.selectedId);
   const block = useEditorStore((s) => (selectedId ? s.blocks[selectedId] : null));
@@ -11,59 +18,52 @@ export default function PropertiesPanel() {
 
   if (!block) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-[var(--text-muted)] px-8">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="opacity-20 mb-3">
-          <circle cx="12" cy="12" r="3" />
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-        </svg>
-        <p className="text-[11px] text-center leading-relaxed">Select a block to edit its properties</p>
+      <div className="flex flex-col items-center justify-center h-full px-8" style={{ color: "var(--text-muted)" }}>
+        <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4"
+          style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)" }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.4">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+        </div>
+        <p className="text-[12px] text-center leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+          Select a block to edit its properties
+        </p>
+        <p className="text-[10px] text-center mt-1" style={{ color: "var(--text-muted)" }}>
+          Click any block on the canvas
+        </p>
       </div>
     );
   }
 
   const p = block.props;
+  const typeColor = TYPE_COLORS[block.type] || "var(--accent)";
 
   function field(label: string, key: string, type: "text" | "number" | "select" | "color" = "text", options?: string[]) {
     if (!block) return null;
     const val = (p as Record<string, unknown>)[key] ?? "";
     return (
       <label className="block mb-3">
-        <span className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-1 block font-medium">{label}</span>
+        <span className="sidebar-section-title block mb-1.5">{label}</span>
         {type === "select" && options ? (
-          <select
-            value={String(val)}
-            onChange={(e) => updateBlockProps(block.id, { [key]: e.target.value })}
-            className="input-base text-[12px]"
-          >
+          <select value={String(val)} onChange={(e) => updateBlockProps(block.id, { [key]: e.target.value })}
+            className="input-base text-[12px]">
             {options.map((o) => <option key={o} value={o}>{o}</option>)}
           </select>
         ) : type === "color" ? (
           <div className="flex gap-2 items-center">
-            <input
-              type="color"
-              value={String(val) || "#000000"}
+            <input type="color" value={String(val) || "#000000"}
               onChange={(e) => updateBlockProps(block.id, { [key]: e.target.value })}
-              className="w-7 h-7 rounded-md border border-[var(--border-color)] cursor-pointer bg-transparent shrink-0"
-            />
-            <input
-              type="text"
-              value={String(val)}
+              className="w-8 h-8 rounded-lg border cursor-pointer bg-transparent shrink-0"
+              style={{ borderColor: "var(--border-color)" }} />
+            <input type="text" value={String(val)}
               onChange={(e) => updateBlockProps(block.id, { [key]: e.target.value })}
-              className="input-base text-[12px]"
-              placeholder="transparent"
-            />
+              className="input-base text-[12px]" placeholder="transparent" />
           </div>
         ) : (
-          <input
-            type={type}
-            value={String(val)}
-            onChange={(e) =>
-              updateBlockProps(block.id, {
-                [key]: type === "number" ? Number(e.target.value) : e.target.value,
-              })
-            }
-            className="input-base text-[12px]"
-          />
+          <input type={type} value={String(val)}
+            onChange={(e) => updateBlockProps(block.id, { [key]: type === "number" ? Number(e.target.value) : e.target.value })}
+            className="input-base text-[12px]" />
         )}
       </label>
     );
@@ -71,55 +71,69 @@ export default function PropertiesPanel() {
 
   return (
     <div className="p-3 overflow-y-auto h-full">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-3">
-        <span className="pill pill-accent font-medium">{block.type}</span>
-        <span className="text-[9px] text-[var(--text-muted)] font-mono opacity-60">{block.id.slice(0, 8)}</span>
+      {/* Block header */}
+      <div className="flex items-center justify-between mb-3 p-2.5 rounded-xl"
+        style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)" }}>
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full" style={{ background: typeColor }} />
+          <span className="text-[12px] font-semibold capitalize" style={{ color: "var(--text-primary)" }}>
+            {block.type}
+          </span>
+        </div>
+        <span className="text-[9px] font-mono" style={{ color: "var(--text-muted)" }}>
+          {block.id.slice(0, 8)}
+        </span>
       </div>
 
       <div className="flex gap-1.5 mb-4">
-        <button onClick={() => duplicateBlock(block.id)} className="btn btn-ghost flex-1 text-[11px]">Duplicate</button>
-        <button onClick={() => removeBlock(block.id)} className="btn btn-danger-ghost flex-1 text-[11px]">Delete</button>
+        <button onClick={() => duplicateBlock(block.id)} className="btn btn-ghost flex-1 text-[11px]">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          Duplicate
+        </button>
+        <button onClick={() => removeBlock(block.id)} className="btn btn-danger-ghost flex-1 text-[11px]">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+          Delete
+        </button>
       </div>
 
       <div className="separator" />
 
-      {/* Content */}
+      {/* Content section */}
       {["heading", "text", "button", "badge", "link"].includes(block.type) && (
-        <div className="mb-1">
+        <>
           <p className="sidebar-section-title mt-3">Content</p>
           {field("Text", "text")}
           {block.type === "heading" && field("Level", "level", "select", ["1", "2", "3", "4"])}
           {block.type === "link" && field("URL", "href")}
-        </div>
+        </>
       )}
       {block.type === "image" && (
-        <div className="mb-1">
+        <>
           <p className="sidebar-section-title mt-3">Content</p>
           {field("Source URL", "src")}
           {field("Alt Text", "alt")}
-        </div>
+        </>
       )}
       {block.type === "input" && (
-        <div className="mb-1">
+        <>
           <p className="sidebar-section-title mt-3">Content</p>
           {field("Placeholder", "placeholder")}
-        </div>
+        </>
       )}
 
-      {/* Layout */}
+      {/* Layout section */}
       {["container", "card", "flex-row", "grid"].includes(block.type) && (
-        <div className="mb-1">
+        <>
           <p className="sidebar-section-title mt-3">Layout</p>
           {block.type === "grid" && field("Columns", "cols", "number")}
           {field("Gap", "gap", "number")}
           {field("Padding", "padding")}
-        </div>
+        </>
       )}
 
       <div className="separator" />
 
-      {/* Style */}
+      {/* Style section */}
       <p className="sidebar-section-title mt-3">Style</p>
       {field("Border Radius", "borderRadius")}
       {field("Background", "bgColor", "color")}
