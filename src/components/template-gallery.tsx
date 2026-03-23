@@ -57,7 +57,7 @@ const COLOR_OPTIONS = [
   { value: "indigo", from: "#a78bfa", to: "#60a5fa", bg: "linear-gradient(135deg,rgba(167,139,250,0.18),rgba(96,165,250,0.12))" },
 ];
 
-const CATEGORIES = ["All", "Marketing", "Dashboard", "Forms", "Profile", "E-commerce", "Content"];
+const CATEGORIES = ["All", "Marketing", "Dashboard", "Forms", "Profile", "E-commerce", "Content", "AI Agent"];
 
 // ── Built-in templates ──
 const BUILT_IN_TEMPLATES: Template[] = [
@@ -361,7 +361,301 @@ const BUILT_IN_TEMPLATES: Template[] = [
       },
     ],
   },
-];
+  // ── Tambo AI Agent Templates ──
+  {
+    id: "tambo-chat-app",
+    name: "Tambo Chat App",
+    description: "Full AI chat interface with TamboProvider, thread, and generative component rendering",
+    icon: "⚡",
+    color: "purple",
+    category: "AI Agent",
+    builtIn: true,
+    blocks: [
+      {
+        type: "agent-provider",
+        props: { apiKey: "NEXT_PUBLIC_TAMBO_API_KEY", userKey: "user-1" },
+        children: [
+          {
+            type: "container",
+            props: { padding: "0", bgColor: "transparent" },
+            children: [
+              { type: "navbar", props: { text: "My AI App", bgColor: "#0d0d12", padding: "12px 24px" }, children: [
+                { type: "badge", props: { text: "Tambo AI", bgColor: "#1a0a3a", textColor: "#a78bfa" } },
+              ]},
+              {
+                type: "flex-row",
+                props: { gap: 0, padding: "0" },
+                children: [
+                  {
+                    type: "sidebar",
+                    props: { bgColor: "#0d0d12", padding: "16px", width: "220px" },
+                    children: [
+                      { type: "heading", props: { text: "Threads", level: 3, fontSize: "13px" } },
+                      { type: "button", props: { text: "+ New Thread", variant: "ghost" } },
+                      { type: "divider", props: {} },
+                      { type: "text", props: { text: "Thread #1", fontSize: "12px", textColor: "#a78bfa" } },
+                      { type: "text", props: { text: "Thread #2", fontSize: "12px", textColor: "#94a3b8" } },
+                    ],
+                  },
+                  {
+                    type: "container",
+                    props: { padding: "16px", bgColor: "transparent" },
+                    children: [
+                      {
+                        type: "chat-thread",
+                        props: { height: "380px", bgColor: "transparent" },
+                        children: [
+                          { type: "chat-message", props: { text: "Hello! I can help you visualize data, manage tasks, and more. What would you like to do?", role: "assistant" } },
+                          { type: "chat-message", props: { text: "Show me a sales chart", role: "user" } },
+                          { type: "tool-call", props: { toolName: "get-sales-data", text: "Fetching sales data...", toolStatus: "done" } },
+                          { type: "data-chart", props: { chartType: "bar", text: "Monthly Sales", label: "Revenue" } },
+                          { type: "chat-message", props: { text: "Here's your sales chart for the past week. Revenue peaked on Wednesday at $90k.", role: "assistant" } },
+                          { type: "streaming-indicator", props: { text: "AI is thinking..." } },
+                        ],
+                      },
+                      { type: "chat-input", props: { placeholder: "Ask me anything..." } },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "tambo-dashboard-agent",
+    name: "AI Dashboard Agent",
+    description: "Analytics dashboard with AI agent that can update charts and stats via conversation",
+    icon: "◈",
+    color: "blue",
+    category: "AI Agent",
+    builtIn: true,
+    blocks: [
+      {
+        type: "agent-provider",
+        props: { apiKey: "NEXT_PUBLIC_TAMBO_API_KEY", userKey: "user-1" },
+        children: [
+          {
+            type: "container",
+            props: { padding: "24px", bgColor: "transparent" },
+            children: [
+              {
+                type: "flex-row",
+                props: { justify: "between", padding: "0 0 16px 0" },
+                children: [
+                  { type: "heading", props: { text: "Analytics Dashboard", level: 2 } },
+                  { type: "badge", props: { text: "AI-Powered", bgColor: "#1a0a3a", textColor: "#a78bfa" } },
+                ],
+              },
+              {
+                type: "grid",
+                props: { cols: 4, gap: 12 },
+                children: [
+                  { type: "stat-card", props: { label: "Total Users", value: 24521, text: "+12% this month", color: "purple" } },
+                  { type: "stat-card", props: { label: "Revenue", value: 84200, text: "+8% this month", color: "teal" } },
+                  { type: "stat-card", props: { label: "Conversions", value: 3621, text: "+3.6% this month", color: "amber" } },
+                  { type: "stat-card", props: { label: "Active Now", value: 1204, text: "Live users", color: "green" } },
+                ],
+              },
+              {
+                type: "flex-row",
+                props: { gap: 16, padding: "16px 0 0 0" },
+                children: [
+                  {
+                    type: "card",
+                    props: { padding: "20px", borderRadius: "12px", width: "60%" },
+                    children: [
+                      { type: "heading", props: { text: "Revenue Overview", level: 3 } },
+                      { type: "data-chart", props: { chartType: "bar", text: "Weekly Revenue", label: "Revenue" } },
+                    ],
+                  },
+                  {
+                    type: "card",
+                    props: { padding: "20px", borderRadius: "12px" },
+                    children: [
+                      { type: "heading", props: { text: "Ask AI", level: 3 } },
+                      { type: "chat-message", props: { text: "What were the top performing days?", role: "user" } },
+                      { type: "chat-message", props: { text: "Wednesday had the highest revenue at $90k, followed by Friday at $70k.", role: "assistant" } },
+                      { type: "chat-input", props: { placeholder: "Ask about your data..." } },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "tambo-generative-ui",
+    name: "Generative UI Demo",
+    description: "Shows Tambo's generative component pattern — AI picks and renders components from your registry",
+    icon: "◧",
+    color: "teal",
+    category: "AI Agent",
+    builtIn: true,
+    blocks: [
+      {
+        type: "agent-provider",
+        props: { apiKey: "NEXT_PUBLIC_TAMBO_API_KEY", userKey: "user-1" },
+        children: [
+          {
+            type: "container",
+            props: { padding: "32px", bgColor: "transparent" },
+            children: [
+              { type: "heading", props: { text: "Generative UI with Tambo", level: 1, align: "center" } },
+              { type: "text", props: { text: "Ask the AI to show data — it picks the right component automatically.", align: "center", textColor: "#94a3b8" } },
+              { type: "spacer", props: { height: "24px" } },
+              {
+                type: "grid",
+                props: { cols: 2, gap: 16 },
+                children: [
+                  {
+                    type: "card",
+                    props: { padding: "20px", borderRadius: "12px" },
+                    children: [
+                      { type: "badge", props: { text: "User Message", bgColor: "#1a0a3a", textColor: "#a78bfa" } },
+                      { type: "chat-message", props: { text: "Show me sales by region as a chart", role: "user" } },
+                      { type: "spacer", props: { height: "8px" } },
+                      { type: "badge", props: { text: "AI Response", bgColor: "#052e16", textColor: "#4ade80" } },
+                      { type: "tool-call", props: { toolName: "get-regional-sales", text: "Fetching regional data", toolStatus: "done" } },
+                      { type: "component-renderer", props: { componentName: "SalesChart", text: "Rendered by Tambo AI" } },
+                    ],
+                  },
+                  {
+                    type: "card",
+                    props: { padding: "20px", borderRadius: "12px" },
+                    children: [
+                      { type: "badge", props: { text: "User Message", bgColor: "#1a0a3a", textColor: "#a78bfa" } },
+                      { type: "chat-message", props: { text: "Add a task: Review Q4 report", role: "user" } },
+                      { type: "spacer", props: { height: "8px" } },
+                      { type: "badge", props: { text: "AI Response", bgColor: "#052e16", textColor: "#4ade80" } },
+                      { type: "component-renderer", props: { componentName: "TaskBoard", text: "Interactable — updates in place" } },
+                      { type: "chat-message", props: { text: "Added 'Review Q4 report' to your task board.", role: "assistant" } },
+                    ],
+                  },
+                ],
+              },
+              { type: "spacer", props: { height: "16px" } },
+              {
+                type: "card",
+                props: { padding: "20px", borderRadius: "12px" },
+                children: [
+                  { type: "heading", props: { text: "Component Registry", level: 3 } },
+                  { type: "code-block", props: { language: "typescript", text: 'const components: TamboComponent[] = [\n  {\n    name: "SalesChart",\n    description: "Displays sales data as a chart",\n    component: SalesChart,\n    propsSchema: z.object({\n      data: z.array(z.object({ region: z.string(), value: z.number() })),\n      type: z.enum(["bar", "line", "pie"]),\n    }),\n  },\n];' } },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "tambo-thread-collapsible",
+    name: "Collapsible AI Chat",
+    description: "MessageThreadCollapsible pattern — floating AI assistant that expands on demand",
+    icon: "⊕",
+    color: "rose",
+    category: "AI Agent",
+    builtIn: true,
+    blocks: [
+      {
+        type: "agent-provider",
+        props: { apiKey: "NEXT_PUBLIC_TAMBO_API_KEY", userKey: "user-1" },
+        children: [
+          {
+            type: "container",
+            props: { padding: "32px", bgColor: "transparent" },
+            children: [
+              { type: "heading", props: { text: "Your App Content", level: 2 } },
+              { type: "text", props: { text: "The AI assistant floats over your existing UI. Click the button to expand.", textColor: "#94a3b8" } },
+              { type: "spacer", props: { height: "16px" } },
+              {
+                type: "grid",
+                props: { cols: 3, gap: 12 },
+                children: [
+                  { type: "stat-card", props: { label: "Projects", value: 12, text: "Active" } },
+                  { type: "stat-card", props: { label: "Tasks", value: 48, text: "In progress" } },
+                  { type: "stat-card", props: { label: "Team", value: 8, text: "Members" } },
+                ],
+              },
+              { type: "spacer", props: { height: "24px" } },
+              {
+                type: "thread-collapsible",
+                props: { text: "AI Assistant", placeholder: "Ask me anything about your projects..." },
+                children: [
+                  { type: "chat-message", props: { text: "Hi! I can help you manage your projects and tasks. What do you need?", role: "assistant" } },
+                  { type: "chat-message", props: { text: "How many tasks are overdue?", role: "user" } },
+                  { type: "tool-call", props: { toolName: "get-overdue-tasks", text: "Checking task deadlines", toolStatus: "done" } },
+                  { type: "chat-message", props: { text: "You have 3 overdue tasks. Would you like me to show them?", role: "assistant" } },
+                  { type: "chat-input", props: { placeholder: "Ask about your projects..." } },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "tambo-mcp-agent",
+    name: "MCP Tool Agent",
+    description: "AI agent with MCP server integration — connects to databases, APIs, and external systems",
+    icon: "⚙",
+    color: "amber",
+    category: "AI Agent",
+    builtIn: true,
+    blocks: [
+      {
+        type: "agent-provider",
+        props: { apiKey: "NEXT_PUBLIC_TAMBO_API_KEY", userKey: "user-1" },
+        children: [
+          {
+            type: "container",
+            props: { padding: "24px", bgColor: "transparent" },
+            children: [
+              { type: "heading", props: { text: "MCP-Powered Agent", level: 2 } },
+              { type: "text", props: { text: "Connected to filesystem, database, and external APIs via Model Context Protocol.", textColor: "#94a3b8", fontSize: "13px" } },
+              { type: "spacer", props: { height: "16px" } },
+              {
+                type: "flex-row",
+                props: { gap: 8, padding: "0 0 16px 0" },
+                children: [
+                  { type: "badge", props: { text: "filesystem", bgColor: "#1a1040", textColor: "#a78bfa" } },
+                  { type: "badge", props: { text: "database", bgColor: "#052e16", textColor: "#4ade80" } },
+                  { type: "badge", props: { text: "http-api", bgColor: "#1c1007", textColor: "#fbbf24" } },
+                ],
+              },
+              {
+                type: "chat-thread",
+                props: { height: "320px", bgColor: "transparent" },
+                children: [
+                  { type: "chat-message", props: { text: "I'm connected to your filesystem, database, and APIs. What would you like to do?", role: "assistant" } },
+                  { type: "chat-message", props: { text: "Read the latest sales report from the database", role: "user" } },
+                  { type: "tool-call", props: { toolName: "database:query", text: "SELECT * FROM sales ORDER BY date DESC LIMIT 10", toolStatus: "done" } },
+                  { type: "data-table", props: { label: "Sales Report", columns: "Date,Product,Revenue", items: "Mar 23,Pro Plan,$12,400\nMar 22,Starter,$4,200\nMar 21,Enterprise,$28,000" } },
+                  { type: "chat-message", props: { text: "Here are the latest 3 sales records. Enterprise deals are driving the most revenue.", role: "assistant" } },
+                ],
+              },
+              { type: "chat-input", props: { placeholder: "Query your data with natural language..." } },
+              { type: "spacer", props: { height: "12px" } },
+              {
+                type: "code-block",
+                props: {
+                  language: "typescript",
+                  text: 'const mcpServers = [\n  { name: "database", url: "http://localhost:8261/mcp", transport: MCPTransport.HTTP },\n  { name: "filesystem", url: "http://localhost:8262/mcp", transport: MCPTransport.HTTP },\n];\n\n<TamboProvider components={components} mcpServers={mcpServers}>\n  <App />\n</TamboProvider>',
+                },
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  },];
 
 // ── Component ──
 interface TemplateGalleryProps {

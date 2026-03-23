@@ -17,7 +17,28 @@ export type BlockType =
   | "spacer"
   | "badge"
   | "avatar"
-  | "link";
+  | "link"
+  // ── Tambo AI Agent blocks ──
+  | "chat-thread"
+  | "chat-message"
+  | "chat-input"
+  | "agent-provider"
+  | "component-renderer"
+  | "tool-call"
+  | "streaming-indicator"
+  | "message-thread"
+  | "thread-collapsible"
+  | "data-chart"
+  | "stat-card"
+  | "data-table"
+  | "code-block"
+  | "alert"
+  | "progress-bar"
+  | "toggle"
+  | "select"
+  | "textarea"
+  | "sidebar"
+  | "navbar";
 
 export interface BlockProps {
   text?: string;
@@ -40,6 +61,29 @@ export interface BlockProps {
   align?: "left" | "center" | "right";
   justify?: "start" | "center" | "end" | "between";
   className?: string;
+  // Tambo-specific props
+  apiKey?: string;
+  userKey?: string;
+  componentName?: string;
+  toolName?: string;
+  toolStatus?: "pending" | "running" | "done" | "error";
+  chartType?: "bar" | "line" | "pie" | "area";
+  value?: number;
+  maxValue?: number;
+  label?: string;
+  checked?: boolean;
+  options?: string;
+  rows?: number;
+  language?: string;
+  role?: "user" | "assistant" | "system";
+  streaming?: boolean;
+  threadId?: string;
+  position?: "left" | "right" | "top" | "bottom";
+  items?: string;
+  columns?: string;
+  color?: string;
+  icon?: string;
+  size?: "sm" | "md" | "lg";
 }
 
 export interface Block {
@@ -116,7 +160,7 @@ export interface AgentBlockDescription {
 }
 
 export function isContainerType(type: BlockType): boolean {
-  return ["container", "card", "flex-row", "grid"].includes(type);
+  return ["container", "card", "flex-row", "grid", "chat-thread", "message-thread", "thread-collapsible", "agent-provider", "sidebar", "navbar"].includes(type);
 }
 
 const DEFAULT_PROPS: Record<BlockType, BlockProps> = {
@@ -134,6 +178,27 @@ const DEFAULT_PROPS: Record<BlockType, BlockProps> = {
   badge: { text: "Badge", variant: "default" },
   avatar: { src: "https://placehold.co/40x40/6366f1/fff?text=A", alt: "avatar" },
   link: { text: "Link", href: "#" },
+  // ── Tambo AI Agent blocks ──
+  "chat-thread": { padding: "16px", bgColor: "transparent", height: "500px" },
+  "chat-message": { text: "Hello! How can I help you today?", role: "assistant" },
+  "chat-input": { placeholder: "Type a message...", variant: "default" },
+  "agent-provider": { apiKey: "NEXT_PUBLIC_TAMBO_API_KEY", userKey: "user-1" },
+  "component-renderer": { componentName: "GenerativeComponent", text: "AI-rendered component appears here" },
+  "tool-call": { toolName: "get-data", toolStatus: "done", text: "Tool executed successfully" },
+  "streaming-indicator": { text: "AI is thinking...", streaming: true },
+  "message-thread": { padding: "16px", height: "400px", bgColor: "transparent" },
+  "thread-collapsible": { text: "Ask me anything...", placeholder: "Type a message..." },
+  "data-chart": { chartType: "bar", label: "Sales Data", text: "Monthly Revenue" },
+  "stat-card": { label: "Total Users", value: 24521, text: "+12% from last month", color: "purple" },
+  "data-table": { label: "Data Table", columns: "Name,Status,Value", items: "Row 1,Active,$100\nRow 2,Pending,$200" },
+  "code-block": { text: 'const agent = new TamboAgent({\n  apiKey: process.env.TAMBO_API_KEY,\n});\n\nawait agent.send("Show me sales data");', language: "typescript" },
+  alert: { text: "This is an important message.", variant: "info", icon: "ℹ" },
+  "progress-bar": { label: "Progress", value: 65, maxValue: 100, color: "purple" },
+  toggle: { label: "Enable feature", checked: false },
+  select: { label: "Select option", placeholder: "Choose...", options: "Option 1\nOption 2\nOption 3" },
+  textarea: { placeholder: "Enter your message...", rows: 4 },
+  sidebar: { padding: "16px", bgColor: "#0d0d12", width: "240px" },
+  navbar: { text: "My AI App", bgColor: "#0d0d12", padding: "12px 24px" },
 };
 
 const STORAGE_KEY = "ui-creator-layout";

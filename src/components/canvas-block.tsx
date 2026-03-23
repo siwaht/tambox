@@ -60,6 +60,177 @@ function BlockContent({ block }: { block: Block }) {
     case "link":
       return <span className="text-sm cursor-pointer underline underline-offset-2"
         style={{ color: "var(--accent-hover)", ...customStyle }}>{p.text}</span>;
+    // ── Tambo AI Agent blocks ──
+    case "code-block":
+      return (
+        <div className="rounded-lg overflow-hidden" style={{ background: "#0d0d12", border: "1px solid var(--border-color)" }}>
+          <div className="flex items-center justify-between px-3 py-1.5" style={{ background: "#13131a", borderBottom: "1px solid var(--border-color)" }}>
+            <span className="text-[10px] font-mono" style={{ color: "var(--text-muted)" }}>{p.language || "typescript"}</span>
+            <span className="text-[9px] px-1.5 py-0.5 rounded" style={{ background: "var(--accent-subtle)", color: "var(--accent)" }}>code</span>
+          </div>
+          <pre className="p-3 text-[11px] font-mono overflow-x-auto leading-relaxed" style={{ color: "#86efac" }}>{p.text}</pre>
+        </div>
+      );
+    case "alert":
+      return (
+        <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg text-[12px]"
+          style={{
+            background: p.variant === "error" ? "var(--danger-subtle)" : p.variant === "success" ? "var(--success-subtle)" : p.variant === "warning" ? "var(--warning-subtle)" : "var(--accent-subtle)",
+            border: `1px solid ${p.variant === "error" ? "var(--danger)" : p.variant === "success" ? "var(--success)" : p.variant === "warning" ? "var(--warning)" : "var(--accent)"}`,
+            color: p.variant === "error" ? "var(--danger)" : p.variant === "success" ? "var(--success)" : p.variant === "warning" ? "var(--warning)" : "var(--accent-hover)",
+          }}>
+          <span>{p.icon || "ℹ"}</span>
+          <span>{p.text}</span>
+        </div>
+      );
+    case "progress-bar":
+      return (
+        <div>
+          <div className="flex justify-between mb-1.5">
+            <span className="text-[11px]" style={{ color: "var(--text-secondary)" }}>{p.label}</span>
+            <span className="text-[11px] font-mono" style={{ color: "var(--accent)" }}>{p.value}%</span>
+          </div>
+          <div className="h-2 rounded-full overflow-hidden" style={{ background: "var(--bg-tertiary)" }}>
+            <div className="h-full rounded-full transition-all" style={{ width: `${p.value || 0}%`, background: "var(--gradient-accent)" }} />
+          </div>
+        </div>
+      );
+    case "toggle":
+      return (
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-5 rounded-full relative transition-colors" style={{ background: p.checked ? "var(--accent)" : "var(--bg-tertiary)", border: "1px solid var(--border-color)" }}>
+            <div className="absolute top-0.5 w-4 h-4 rounded-full transition-all shadow-sm" style={{ left: p.checked ? "calc(100% - 18px)" : "2px", background: "white" }} />
+          </div>
+          <span className="text-[12px]" style={{ color: "var(--text-secondary)" }}>{p.label}</span>
+        </div>
+      );
+    case "select":
+      return (
+        <div>
+          {p.label && <p className="text-[11px] mb-1 font-medium" style={{ color: "var(--text-secondary)" }}>{p.label}</p>}
+          <div className="flex items-center justify-between px-3 py-2 rounded-lg text-[12px] pointer-events-none"
+            style={{ background: "var(--bg-primary)", border: "1px solid var(--border-color)", color: "var(--text-muted)" }}>
+            <span>{p.placeholder || "Choose..."}</span>
+            <span>▾</span>
+          </div>
+        </div>
+      );
+    case "textarea":
+      return (
+        <textarea placeholder={p.placeholder} rows={p.rows || 4} readOnly
+          className="w-full px-3 py-2 text-sm pointer-events-none resize-none"
+          style={{ background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "8px", color: "var(--text-primary)" }} />
+      );
+    case "stat-card":
+      return (
+        <div className="p-4 rounded-xl" style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)" }}>
+          <p className="text-[11px] mb-1" style={{ color: "var(--text-muted)" }}>{p.label}</p>
+          <p className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>{typeof p.value === "number" ? p.value.toLocaleString() : p.value || "0"}</p>
+          {p.text && <p className="text-[11px] mt-1" style={{ color: "var(--success)" }}>{p.text}</p>}
+        </div>
+      );
+    case "data-table":
+      return (
+        <div className="rounded-lg overflow-hidden" style={{ border: "1px solid var(--border-color)" }}>
+          <div className="grid text-[10px] font-semibold uppercase tracking-wider px-3 py-2"
+            style={{ gridTemplateColumns: `repeat(${(p.columns || "Name,Status,Value").split(",").length}, 1fr)`, background: "var(--bg-tertiary)", color: "var(--text-muted)", borderBottom: "1px solid var(--border-color)" }}>
+            {(p.columns || "Name,Status,Value").split(",").map((col: string, i: number) => <span key={i}>{col.trim()}</span>)}
+          </div>
+          {(p.items || "Row 1,Active,$100\nRow 2,Pending,$200").split("\n").map((row: string, i: number) => (
+            <div key={i} className="grid px-3 py-2 text-[12px]"
+              style={{ gridTemplateColumns: `repeat(${(p.columns || "Name,Status,Value").split(",").length}, 1fr)`, color: "var(--text-secondary)", borderBottom: i < (p.items || "").split("\n").length - 1 ? "1px solid var(--border-subtle)" : "none" }}>
+              {row.split(",").map((cell: string, j: number) => <span key={j}>{cell.trim()}</span>)}
+            </div>
+          ))}
+        </div>
+      );
+    case "data-chart":
+      return (
+        <div className="p-4 rounded-xl" style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)" }}>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[12px] font-medium" style={{ color: "var(--text-primary)" }}>{p.text || "Chart"}</p>
+            <span className="pill text-[10px]">{p.chartType || "bar"}</span>
+          </div>
+          <div className="flex items-end gap-1.5 h-20">
+            {[65, 40, 80, 55, 90, 45, 70].map((h, i) => (
+              <div key={i} className="flex-1 rounded-t-sm transition-all" style={{ height: `${h}%`, background: i % 2 === 0 ? "var(--accent)" : "var(--accent-2)", opacity: 0.8 }} />
+            ))}
+          </div>
+          <div className="flex justify-between mt-1">
+            {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((d) => (
+              <span key={d} className="text-[9px]" style={{ color: "var(--text-muted)" }}>{d}</span>
+            ))}
+          </div>
+        </div>
+      );
+    case "chat-message":
+      return (
+        <div className={`flex gap-2.5 ${p.role === "user" ? "flex-row-reverse" : ""}`}>
+          {p.role !== "user" && (
+            <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-[11px]"
+              style={{ background: "var(--gradient-accent)", color: "white" }}>AI</div>
+          )}
+          <div className={`max-w-[80%] px-3 py-2 rounded-xl text-[12px] leading-relaxed ${p.role === "user" ? "msg-user" : "msg-assistant"}`}>
+            {p.text}
+          </div>
+        </div>
+      );
+    case "chat-input":
+      return (
+        <div className="flex gap-2 items-center p-2 rounded-xl" style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)" }}>
+          <input readOnly placeholder={p.placeholder || "Type a message..."} className="flex-1 bg-transparent text-[12px] outline-none pointer-events-none" style={{ color: "var(--text-primary)" }} />
+          <button className="w-8 h-8 rounded-lg flex items-center justify-center pointer-events-none" style={{ background: "var(--gradient-accent)" }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+      );
+    case "streaming-indicator":
+      return (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-[12px]" style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)" }}>
+          <div className="flex gap-1">
+            {[0, 150, 300].map((delay) => (
+              <div key={delay} className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "var(--accent)", animationDelay: `${delay}ms` }} />
+            ))}
+          </div>
+          <span style={{ color: "var(--text-muted)" }}>{p.text || "AI is thinking..."}</span>
+        </div>
+      );
+    case "tool-call":
+      return (
+        <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[11px]"
+          style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)" }}>
+          <span className="text-[14px]">⚙</span>
+          <div className="flex-1 min-w-0">
+            <p className="font-medium truncate" style={{ color: "var(--text-primary)" }}>{p.toolName || "tool"}</p>
+            <p className="truncate" style={{ color: "var(--text-muted)" }}>{p.text}</p>
+          </div>
+          <span className="pill text-[9px]" style={{
+            background: p.toolStatus === "done" ? "var(--success-subtle)" : p.toolStatus === "error" ? "var(--danger-subtle)" : "var(--accent-subtle)",
+            color: p.toolStatus === "done" ? "var(--success)" : p.toolStatus === "error" ? "var(--danger)" : "var(--accent)",
+          }}>{p.toolStatus || "done"}</span>
+        </div>
+      );
+    case "component-renderer":
+      return (
+        <div className="rounded-xl p-4 text-center" style={{ background: "var(--accent-subtle)", border: "2px dashed var(--accent-muted)" }}>
+          <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: "var(--accent)" }}>Tambo Component</p>
+          <p className="text-[12px] font-medium" style={{ color: "var(--text-primary)" }}>{p.componentName || "GenerativeComponent"}</p>
+          <p className="text-[10px] mt-1" style={{ color: "var(--text-muted)" }}>Rendered by AI based on user message</p>
+        </div>
+      );
+    case "agent-provider":
+      return (
+        <div className="rounded-xl p-3 text-[11px]" style={{ background: "var(--bg-tertiary)", border: "1px solid var(--accent-muted)" }}>
+          <div className="flex items-center gap-2 mb-2">
+            <span style={{ color: "var(--accent)" }}>⚡</span>
+            <span className="font-semibold" style={{ color: "var(--accent)" }}>TamboProvider</span>
+          </div>
+          <div className="space-y-1" style={{ color: "var(--text-muted)" }}>
+            <p>apiKey: <span style={{ color: "var(--success)" }}>{p.apiKey || "NEXT_PUBLIC_TAMBO_API_KEY"}</span></p>
+            <p>userKey: <span style={{ color: "var(--accent-2)" }}>&quot;{p.userKey || "user-1"}&quot;</span></p>
+          </div>
+        </div>
+      );
     default:
       return null;
   }
@@ -98,7 +269,7 @@ export default function CanvasBlock({ id, depth = 0 }: { id: string; depth?: num
     card: {
       padding: block.props.padding || "16px",
       borderRadius: block.props.borderRadius || "12px",
-      background: block.props.bgColor || "var(--bg-tertiary)",
+      backgroundColor: block.props.bgColor || "var(--bg-tertiary)",
       border: "1px solid var(--border-color)",
     },
     "flex-row": {
@@ -112,6 +283,55 @@ export default function CanvasBlock({ id, depth = 0 }: { id: string; depth?: num
       gridTemplateColumns: `repeat(${block.props.cols || 2}, 1fr)`,
       gap: `${block.props.gap || 12}px`,
       padding: block.props.padding,
+    },
+    "chat-thread": {
+      padding: block.props.padding || "16px",
+      height: block.props.height || "400px",
+      display: "flex",
+      flexDirection: "column",
+      gap: "12px",
+      overflowY: "auto",
+      backgroundColor: block.props.bgColor || "var(--bg-primary)",
+      borderRadius: "12px",
+      border: "1px solid var(--border-color)",
+    },
+    "message-thread": {
+      padding: block.props.padding || "16px",
+      height: block.props.height || "400px",
+      display: "flex",
+      flexDirection: "column",
+      gap: "12px",
+      backgroundColor: block.props.bgColor || "transparent",
+    },
+    "thread-collapsible": {
+      borderRadius: "12px",
+      border: "1px solid var(--border-color)",
+      overflow: "hidden",
+      backgroundColor: "var(--bg-secondary)",
+    },
+    "agent-provider": {
+      padding: "12px",
+      borderRadius: "12px",
+      border: "2px dashed var(--accent-muted)",
+      backgroundColor: "var(--accent-subtle)",
+    },
+    sidebar: {
+      width: block.props.width || "240px",
+      padding: block.props.padding || "16px",
+      backgroundColor: block.props.bgColor || "var(--bg-secondary)",
+      borderRight: "1px solid var(--border-color)",
+      display: "flex",
+      flexDirection: "column",
+      gap: "8px",
+      minHeight: "300px",
+    },
+    navbar: {
+      padding: block.props.padding || "12px 24px",
+      backgroundColor: block.props.bgColor || "var(--bg-secondary)",
+      borderBottom: "1px solid var(--border-color)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
     },
   };
 
@@ -130,7 +350,7 @@ export default function CanvasBlock({ id, depth = 0 }: { id: string; depth?: num
       style={{
         ...(isContainer ? containerStyles[block.type] : {}),
         ...selectedStyle,
-        ...(isOver && isContainer ? { outline: "2px dashed var(--accent)", background: "var(--accent-subtle)" } : {}),
+        ...(isOver && isContainer ? { outline: "2px dashed var(--accent)", backgroundColor: "var(--accent-subtle)" } : {}),
         ...(!isSelected && !isOver ? { outline: "1px solid transparent" } : {}),
       }}
       onMouseEnter={(e) => {

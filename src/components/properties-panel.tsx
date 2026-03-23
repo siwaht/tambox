@@ -120,6 +120,105 @@ export default function PropertiesPanel() {
           {field("Placeholder", "placeholder")}
         </>
       )}
+      {["textarea", "select"].includes(block.type) && (
+        <>
+          <p className="sidebar-section-title mt-3">Content</p>
+          {field("Label", "label")}
+          {field("Placeholder", "placeholder")}
+          {block.type === "textarea" && field("Rows", "rows", "number")}
+          {block.type === "select" && field("Options (one per line)", "options")}
+        </>
+      )}
+      {block.type === "toggle" && (
+        <>
+          <p className="sidebar-section-title mt-3">Content</p>
+          {field("Label", "label")}
+        </>
+      )}
+      {block.type === "alert" && (
+        <>
+          <p className="sidebar-section-title mt-3">Content</p>
+          {field("Message", "text")}
+          {field("Variant", "variant", "select", ["info", "success", "warning", "error"])}
+          {field("Icon", "icon")}
+        </>
+      )}
+      {block.type === "progress-bar" && (
+        <>
+          <p className="sidebar-section-title mt-3">Content</p>
+          {field("Label", "label")}
+          {field("Value (0-100)", "value", "number")}
+        </>
+      )}
+      {block.type === "stat-card" && (
+        <>
+          <p className="sidebar-section-title mt-3">Content</p>
+          {field("Label", "label")}
+          {field("Value", "value", "number")}
+          {field("Subtitle", "text")}
+        </>
+      )}
+      {block.type === "data-table" && (
+        <>
+          <p className="sidebar-section-title mt-3">Content</p>
+          {field("Columns (comma-separated)", "columns")}
+          {field("Rows (one per line, comma-separated)", "items")}
+        </>
+      )}
+      {block.type === "code-block" && (
+        <>
+          <p className="sidebar-section-title mt-3">Content</p>
+          {field("Language", "language")}
+          {field("Code", "text")}
+        </>
+      )}
+      {block.type === "data-chart" && (
+        <>
+          <p className="sidebar-section-title mt-3">Content</p>
+          {field("Title", "text")}
+          {field("Chart Type", "chartType", "select", ["bar", "line", "pie", "area"])}
+        </>
+      )}
+      {block.type === "chat-message" && (
+        <>
+          <p className="sidebar-section-title mt-3">Content</p>
+          {field("Message", "text")}
+          {field("Role", "role", "select", ["user", "assistant", "system"])}
+        </>
+      )}
+      {block.type === "chat-input" && (
+        <>
+          <p className="sidebar-section-title mt-3">Content</p>
+          {field("Placeholder", "placeholder")}
+        </>
+      )}
+      {block.type === "streaming-indicator" && (
+        <>
+          <p className="sidebar-section-title mt-3">Content</p>
+          {field("Label", "text")}
+        </>
+      )}
+      {block.type === "tool-call" && (
+        <>
+          <p className="sidebar-section-title mt-3">Content</p>
+          {field("Tool Name", "toolName")}
+          {field("Description", "text")}
+          {field("Status", "toolStatus", "select", ["pending", "running", "done", "error"])}
+        </>
+      )}
+      {block.type === "component-renderer" && (
+        <>
+          <p className="sidebar-section-title mt-3">Content</p>
+          {field("Component Name", "componentName")}
+        </>
+      )}
+      {block.type === "agent-provider" && (
+        <>
+          <p className="sidebar-section-title mt-3">Config</p>
+          {field("API Key Env Var", "apiKey")}
+          {field("User Key", "userKey")}
+        </>
+      )}
 
       {/* Layout section */}
       {["container", "card", "flex-row", "grid"].includes(block.type) && (
