@@ -11,9 +11,50 @@ interface AgentConfig {
   externalEndpoint: string;
   webhookUrl: string;
   customHeaders: string;
+  // Enhanced config options
+  temperature?: number;
+  maxTokens?: number;
+  topP?: number;
+  responseFormat?: "auto" | "json" | "text";
+  timeout?: number; // ms, default 30000
 }
 
 interface Message { role: "user" | "assistant"; content: string; }
+
+interface AgentResponse {
+  response?: string;
+  error?: string;
+  errorCode?: "NO_API_KEY" | "INVALID_CONFIG" | "PROVIDER_ERROR" | "TIMEOUT" | "PARSE_ERROR" | "UNKNOWN";
+  usage?: { promptTokens?: number; completionTokens?: number; totalTokens?: number };
+  model?: string;
+  latencyMs?: number;
+}
+
+// ── Fetch with timeout ──
+async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new Error(`Request timed out after ${timeoutMs}ms`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// ── Parse custom headers safely ──
+function parseHeaders(raw: string): Record<string, string> {
+  if (!raw || !raw.trim()) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    if (typeof parsed === "object" && parsed !== null) return parsed;
+  } catch { /* ignore */ }
+  return {};
+}
 
 // Build the effective system prompt: always use DEFAULT_SYSTEM_PROMPT, append user's custom prompt if provided
 function buildSystemPrompt(userPrompt?: string): string {
@@ -22,53 +63,116 @@ function buildSystemPrompt(userPrompt?: string): string {
   return `${DEFAULT_SYSTEM_PROMPT}\n\nAdditional instructions:\n${userPrompt.trim()}`;
 }
 
-// ── LangChain built-in handler ──
-async function handleLangChain(message: string, config: AgentConfig, history: Message[]): Promise<string> {
-  const isAnthropic = config.model?.toLowerCase().includes("claude");
-  const systemPrompt = buildSystemPrompt(config.systemPrompt);
-  const messages = [
+// ── Shared helpers ──
+function detectProvider(model: string): "anthropic" | "openai" {
+  return model?.toLowerCase().includes("claude") ? "anthropic" : "openai";
+}
+
+function buildMessages(systemPrompt: string, history: Message[], message: string) {
+  return [
     { role: "system" as const, content: systemPrompt },
     ...history.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
     { role: "user" as const, content: message },
   ];
+}
 
-  if (isAnthropic) {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": config.apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: config.model || "claude-sonnet-4-6",
-        max_tokens: 4096,
-        system: systemPrompt,
-        messages: messages.filter((m) => m.role !== "system"),
-      }),
-    });
-    if (!res.ok) throw new Error(`Anthropic error ${res.status}: ${await res.text()}`);
-    const data = await res.json();
-    return data.content?.[0]?.text || "No response from model.";
+async function callAnthropic(
+  messages: ReturnType<typeof buildMessages>,
+  systemPrompt: string,
+  config: AgentConfig,
+  extraBody: Record<string, unknown> = {},
+): Promise<{ text: string; usage?: AgentResponse["usage"] }> {
+  const timeout = config.timeout || 30000;
+  const res = await fetchWithTimeout("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": config.apiKey,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: config.model || "claude-sonnet-4-6",
+      max_tokens: config.maxTokens || 4096,
+      ...(config.temperature != null ? { temperature: config.temperature } : {}),
+      ...(config.topP != null ? { top_p: config.topP } : {}),
+      system: systemPrompt,
+      messages: messages.filter((m) => m.role !== "system"),
+      ...extraBody,
+    }),
+  }, timeout);
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "Unknown error");
+    if (res.status === 401) throw new Error("Invalid Anthropic API key. Check your key in the Agent panel.");
+    if (res.status === 429) throw new Error("Rate limited by Anthropic. Wait a moment and try again.");
+    if (res.status === 529) throw new Error("Anthropic is overloaded. Try again shortly.");
+    throw new Error(`Anthropic error ${res.status}: ${errText}`);
   }
 
-  // OpenAI-compatible (LangChain uses OpenAI by default)
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+  const data = await res.json();
+  const textContent = data.content?.find((c: { type: string }) => c.type === "text");
+  return {
+    text: textContent?.text || data.content?.[0]?.text || "No response from model.",
+    usage: data.usage ? {
+      promptTokens: data.usage.input_tokens,
+      completionTokens: data.usage.output_tokens,
+      totalTokens: (data.usage.input_tokens || 0) + (data.usage.output_tokens || 0),
+    } : undefined,
+  };
+}
+
+async function callOpenAI(
+  messages: ReturnType<typeof buildMessages>,
+  config: AgentConfig,
+  extraBody: Record<string, unknown> = {},
+): Promise<{ text: string; usage?: AgentResponse["usage"] }> {
+  const timeout = config.timeout || 30000;
+  const isReasoningModel = config.model?.startsWith("o1") || config.model?.startsWith("o3");
+  const res = await fetchWithTimeout("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${config.apiKey}` },
-    body: JSON.stringify({ model: config.model || "gpt-4o", messages, max_tokens: 4096 }),
-  });
-  if (!res.ok) throw new Error(`OpenAI error ${res.status}: ${await res.text()}`);
+    body: JSON.stringify({
+      model: config.model || "gpt-4o",
+      messages: isReasoningModel ? messages.filter((m) => m.role !== "system") : messages,
+      max_tokens: config.maxTokens || 4096,
+      ...(config.temperature != null && !isReasoningModel ? { temperature: config.temperature } : {}),
+      ...(config.topP != null && !isReasoningModel ? { top_p: config.topP } : {}),
+      ...extraBody,
+    }),
+  }, timeout);
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "Unknown error");
+    if (res.status === 401) throw new Error("Invalid OpenAI API key. Check your key in the Agent panel.");
+    if (res.status === 429) throw new Error("Rate limited by OpenAI. Wait a moment and try again.");
+    if (res.status === 503) throw new Error("OpenAI is temporarily unavailable. Try again shortly.");
+    throw new Error(`OpenAI error ${res.status}: ${errText}`);
+  }
+
   const data = await res.json();
-  return data.choices?.[0]?.message?.content || "No response from model.";
+  return {
+    text: data.choices?.[0]?.message?.content || "No response from model.",
+    usage: data.usage ? {
+      promptTokens: data.usage.prompt_tokens,
+      completionTokens: data.usage.completion_tokens,
+      totalTokens: data.usage.total_tokens,
+    } : undefined,
+  };
+}
+
+// ── LangChain built-in handler ──
+async function handleLangChain(message: string, config: AgentConfig, history: Message[]): Promise<{ text: string; usage?: AgentResponse["usage"] }> {
+  const systemPrompt = buildSystemPrompt(config.systemPrompt);
+  const messages = buildMessages(systemPrompt, history, message);
+
+  if (detectProvider(config.model) === "anthropic") {
+    return callAnthropic(messages, systemPrompt, config);
+  }
+  return callOpenAI(messages, config);
 }
 
 // ── LangGraph built-in handler ──
-// LangGraph adds stateful multi-step reasoning — we simulate the graph flow
-async function handleLangGraph(message: string, config: AgentConfig, history: Message[]): Promise<string> {
-  const isAnthropic = config.model?.toLowerCase().includes("claude");
-
-  // LangGraph system prompt includes graph-aware reasoning
+async function handleLangGraph(message: string, config: AgentConfig, history: Message[]): Promise<{ text: string; usage?: AgentResponse["usage"] }> {
   const graphSystemPrompt = `${buildSystemPrompt(config.systemPrompt)}
 
 You are operating as a LangGraph stateful agent. You can reason in multiple steps:
@@ -78,47 +182,16 @@ You are operating as a LangGraph stateful agent. You can reason in multiple step
 
 Always output your final JSON in a \`\`\`json code block.`;
 
-  const messages = [
-    { role: "system" as const, content: graphSystemPrompt },
-    ...history.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
-    { role: "user" as const, content: message },
-  ];
+  const messages = buildMessages(graphSystemPrompt, history, message);
 
-  if (isAnthropic) {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": config.apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: config.model || "claude-sonnet-4-6",
-        max_tokens: 4096,
-        system: graphSystemPrompt,
-        messages: messages.filter((m) => m.role !== "system"),
-      }),
-    });
-    if (!res.ok) throw new Error(`Anthropic error ${res.status}: ${await res.text()}`);
-    const data = await res.json();
-    return data.content?.[0]?.text || "No response from model.";
+  if (detectProvider(config.model) === "anthropic") {
+    return callAnthropic(messages, graphSystemPrompt, config);
   }
-
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${config.apiKey}` },
-    body: JSON.stringify({ model: config.model || "gpt-4o", messages, max_tokens: 4096 }),
-  });
-  if (!res.ok) throw new Error(`OpenAI error ${res.status}: ${await res.text()}`);
-  const data = await res.json();
-  return data.choices?.[0]?.message?.content || "No response from model.";
+  return callOpenAI(messages, config);
 }
 
 // ── DeepAgents built-in handler ──
-// DeepAgents uses deep reasoning with chain-of-thought
-async function handleDeepAgents(message: string, config: AgentConfig, history: Message[]): Promise<string> {
-  const isAnthropic = config.model?.toLowerCase().includes("claude");
-
+async function handleDeepAgents(message: string, config: AgentConfig, history: Message[]): Promise<{ text: string; usage?: AgentResponse["usage"] }> {
   const deepSystemPrompt = `${buildSystemPrompt(config.systemPrompt)}
 
 You are a DeepAgent with advanced reasoning capabilities. For UI generation:
@@ -129,106 +202,63 @@ You are a DeepAgent with advanced reasoning capabilities. For UI generation:
 
 Be thorough and create production-quality UI layouts.`;
 
-  const messages = [
-    { role: "system" as const, content: deepSystemPrompt },
-    ...history.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
-    { role: "user" as const, content: message },
-  ];
+  const messages = buildMessages(deepSystemPrompt, history, message);
 
-  if (isAnthropic) {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": config.apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: config.model || "claude-sonnet-4-6",
-        max_tokens: 8192,
-        thinking: { type: "enabled", budget_tokens: 2000 },
-        system: deepSystemPrompt,
-        messages: messages.filter((m) => m.role !== "system"),
-      }),
-    });
-    if (!res.ok) {
-      // Fallback without extended thinking if not supported
-      const res2 = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": config.apiKey,
-          "anthropic-version": "2023-06-01",
-        },
-        body: JSON.stringify({
-          model: config.model || "claude-sonnet-4-6",
-          max_tokens: 4096,
-          system: deepSystemPrompt,
-          messages: messages.filter((m) => m.role !== "system"),
-        }),
-      });
-      if (!res2.ok) throw new Error(`Anthropic error ${res2.status}: ${await res2.text()}`);
-      const data2 = await res2.json();
-      return data2.content?.[0]?.text || "No response from model.";
+  if (detectProvider(config.model) === "anthropic") {
+    // Try extended thinking first, fall back gracefully
+    try {
+      return await callAnthropic(messages, deepSystemPrompt, {
+        ...config,
+        maxTokens: config.maxTokens || 8192,
+      }, { thinking: { type: "enabled", budget_tokens: 2000 } });
+    } catch {
+      return callAnthropic(messages, deepSystemPrompt, config);
     }
-    const data = await res.json();
-    // Extract text from thinking + text blocks
-    const textContent = data.content?.find((c: { type: string }) => c.type === "text");
-    return textContent?.text || "No response from model.";
   }
 
-  // OpenAI with o1/o3 reasoning models for DeepAgents
-  const isReasoningModel = config.model?.startsWith("o1") || config.model?.startsWith("o3");
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${config.apiKey}` },
-    body: JSON.stringify({
-      model: config.model || "gpt-4o",
-      messages: isReasoningModel ? messages.filter((m) => m.role !== "system") : messages,
-      max_tokens: 4096,
-    }),
-  });
-  if (!res.ok) throw new Error(`OpenAI error ${res.status}: ${await res.text()}`);
-  const data = await res.json();
-  return data.choices?.[0]?.message?.content || "No response from model.";
+  return callOpenAI(messages, config);
 }
 
 // ── External API proxy ──
-async function handleExternalApi(message: string, config: AgentConfig, history: Message[]): Promise<string> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (config.customHeaders) {
-    try { Object.assign(headers, JSON.parse(config.customHeaders)); } catch { /* ignore */ }
-  }
+async function handleExternalApi(message: string, config: AgentConfig, history: Message[]): Promise<{ text: string }> {
+  const headers: Record<string, string> = { "Content-Type": "application/json", ...parseHeaders(config.customHeaders) };
   if (config.apiKey) headers["Authorization"] = `Bearer ${config.apiKey}`;
 
-  const res = await fetch(config.externalEndpoint, {
+  const timeout = config.timeout || 30000;
+  const res = await fetchWithTimeout(config.externalEndpoint, {
     method: "POST",
     headers,
     body: JSON.stringify({ message, history, config: { model: config.model, type: config.type } }),
-  });
-  if (!res.ok) throw new Error(`External API error ${res.status}: ${await res.text()}`);
+  }, timeout);
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "Unknown error");
+    throw new Error(`External API returned ${res.status}: ${errText}`);
+  }
   const data = await res.json();
-  return data.response || data.message || data.content || data.text || JSON.stringify(data);
+  return { text: data.response || data.message || data.content || data.text || JSON.stringify(data) };
 }
 
 // ── Webhook proxy ──
-async function handleWebhook(message: string, config: AgentConfig, history: Message[]): Promise<string> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (config.customHeaders) {
-    try { Object.assign(headers, JSON.parse(config.customHeaders)); } catch { /* ignore */ }
-  }
+async function handleWebhook(message: string, config: AgentConfig, history: Message[]): Promise<{ text: string }> {
+  const headers: Record<string, string> = { "Content-Type": "application/json", ...parseHeaders(config.customHeaders) };
 
-  const res = await fetch(config.webhookUrl, {
+  const timeout = config.timeout || 30000;
+  const res = await fetchWithTimeout(config.webhookUrl, {
     method: "POST",
     headers,
     body: JSON.stringify({ event: "chat_message", message, history, agent: { type: config.type, model: config.model } }),
-  });
-  if (!res.ok) throw new Error(`Webhook error ${res.status}: ${await res.text()}`);
+  }, timeout);
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "Unknown error");
+    throw new Error(`Webhook returned ${res.status}: ${errText}`);
+  }
   try {
     const data = await res.json();
-    return data.response || data.message || data.content || data.text || JSON.stringify(data);
+    return { text: data.response || data.message || data.content || data.text || JSON.stringify(data) };
   } catch {
-    return "Webhook received successfully.";
+    return { text: "Webhook received successfully." };
   }
 }
 
@@ -261,53 +291,80 @@ Example:
 CRITICAL: Always nest props inside "props": {}. Always wrap output in \`\`\`json blocks.`;
 
 export async function POST(req: NextRequest) {
+  const startTime = Date.now();
   try {
-    const { message, config, history = [] } = await req.json() as {
+    const body = await req.json().catch(() => null);
+    if (!body) {
+      return NextResponse.json({ error: "Invalid JSON body.", errorCode: "PARSE_ERROR" } satisfies AgentResponse, { status: 400 });
+    }
+
+    const { message, config, history = [] } = body as {
       message: string;
       config: AgentConfig;
       history: Message[];
     };
 
     if (!message?.trim()) {
-      return NextResponse.json({ error: "Message is required." });
+      return NextResponse.json({ error: "Message is required.", errorCode: "INVALID_CONFIG" } satisfies AgentResponse, { status: 400 });
     }
 
-    console.log(`[Agent] Received: "${message.substring(0, 50)}..." mode=${config.connectionMode} type=${config.type} model=${config.model}`);
+    if (!config?.type || !config?.connectionMode) {
+      return NextResponse.json({ error: "Agent config with type and connectionMode is required.", errorCode: "INVALID_CONFIG" } satisfies AgentResponse, { status: 400 });
+    }
 
-    let response: string;
+    console.log(`[Agent] type=${config.type} mode=${config.connectionMode} model=${config.model} msg="${message.substring(0, 60)}..."`);
+
+    let result: { text: string; usage?: AgentResponse["usage"] };
 
     // Route to appropriate handler
-    if (config.connectionMode === "external-api" && config.externalEndpoint) {
-      response = await handleExternalApi(message, config, history);
-    } else if (config.connectionMode === "webhook" && config.webhookUrl) {
-      response = await handleWebhook(message, config, history);
+    if (config.connectionMode === "external-api") {
+      if (!config.externalEndpoint) {
+        return NextResponse.json({ error: "External API endpoint URL is required.", errorCode: "INVALID_CONFIG" } satisfies AgentResponse, { status: 400 });
+      }
+      result = await handleExternalApi(message, config, history);
+    } else if (config.connectionMode === "webhook") {
+      if (!config.webhookUrl) {
+        return NextResponse.json({ error: "Webhook URL is required.", errorCode: "INVALID_CONFIG" } satisfies AgentResponse, { status: 400 });
+      }
+      result = await handleWebhook(message, config, history);
     } else {
       // Built-in mode — requires API key
       if (!config.apiKey) {
         return NextResponse.json({
-          error: "No API key configured. Add your OpenAI or Anthropic API key in the Agent panel to get started.",
-        });
+          error: "No API key configured. Add your OpenAI or Anthropic API key in the Agent panel.",
+          errorCode: "NO_API_KEY",
+        } satisfies AgentResponse, { status: 400 });
       }
 
       switch (config.type) {
-        case "langchain":
-          response = await handleLangChain(message, config, history);
-          break;
         case "langgraph":
-          response = await handleLangGraph(message, config, history);
+          result = await handleLangGraph(message, config, history);
           break;
         case "deepagents":
-          response = await handleDeepAgents(message, config, history);
+          result = await handleDeepAgents(message, config, history);
           break;
+        case "langchain":
         default:
-          response = await handleLangChain(message, config, history);
+          result = await handleLangChain(message, config, history);
       }
     }
 
-    return NextResponse.json({ response });
+    const latencyMs = Date.now() - startTime;
+    return NextResponse.json({
+      response: result.text,
+      usage: result.usage,
+      model: config.model,
+      latencyMs,
+    } satisfies AgentResponse);
   } catch (err) {
+    const latencyMs = Date.now() - startTime;
     const message = err instanceof Error ? err.message : "Unknown server error";
+    const isTimeout = message.includes("timed out");
     console.error("[Agent] Error:", message);
-    return NextResponse.json({ error: `Agent error: ${message}` });
+    return NextResponse.json({
+      error: `Agent error: ${message}`,
+      errorCode: isTimeout ? "TIMEOUT" : "PROVIDER_ERROR",
+      latencyMs,
+    } satisfies AgentResponse, { status: isTimeout ? 504 : 502 });
   }
 }

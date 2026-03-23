@@ -28,33 +28,36 @@ const PREVIEW_WIDTHS: Record<PreviewSize, string> = { desktop: "100%", tablet: "
 const ZOOM_LEVELS = [50, 75, 100, 125, 150];
 const CONTAINER_TYPES = ["container", "card", "flex-row", "grid", "chat-thread", "message-thread", "thread-collapsible", "agent-provider", "sidebar", "navbar"];
 
-// ── Drop indicator line between blocks ──
 function DropIndicator({ active }: { active: boolean }) {
   if (!active) return null;
   return (
     <div className="relative h-0.5 my-0.5 pointer-events-none z-30">
-      <div
-        className="absolute inset-0 rounded-full"
-        style={{ background: "var(--accent)", boxShadow: "0 0 6px var(--accent-glow)" }}
-      />
-      <div
-        className="absolute -left-1 -top-1.5 w-3 h-3 rounded-full border-2"
-        style={{ borderColor: "var(--accent)", background: "var(--bg-primary)" }}
-      />
+      <div className="absolute inset-0 rounded-full" style={{ background: "var(--accent)", boxShadow: "0 0 6px var(--accent-glow)" }} />
+      <div className="absolute -left-1 -top-1.5 w-3 h-3 rounded-full border-2" style={{ borderColor: "var(--accent)", background: "var(--bg-primary)" }} />
     </div>
   );
 }
+
+// Quick Start Template cards shown in the empty canvas
+const QUICK_TEMPLATES = [
+  { id: "chat", name: "Chat Agent", desc: "Simple conversational agent with status and logs", icon: "💬", blocks: "~50 sub-blocks", color: "#7c6af7" },
+  { id: "dashboard", name: "Dashboard Agent", desc: "Data-rich agent with charts, tables, and KPIs", icon: "📊", blocks: "~65 sub-blocks", color: "#22d3a0" },
+  { id: "tool", name: "Tool Agent", desc: "Agent with tool call/try, approvals, and results", icon: "🔧", blocks: "~56 sub-blocks", color: "#fbbf24" },
+  { id: "blank", name: "Blank Canvas", desc: "Start from scratch — add blocks as you go", icon: "📄", blocks: "", color: "#8080a8" },
+];
 
 function CanvasDropZone({
   previewSize,
   zoom,
   activeId,
   overId,
+  onTemplateClick,
 }: {
   previewSize: PreviewSize;
   zoom: number;
   activeId: string | null;
   overId: string | null;
+  onTemplateClick: (id: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: "canvas-root", data: { isRoot: true } });
   const rootIds = useEditorStore((s) => s.rootIds);
@@ -76,48 +79,73 @@ function CanvasDropZone({
         }}
       >
         {rootIds.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-[65vh] select-none">
-            <div className="relative mb-8 float">
-              <div className="w-20 h-20 rounded-2xl flex items-center justify-center"
-                style={{ background: "var(--gradient-subtle)", border: "1px solid var(--border-color)", boxShadow: "var(--shadow-md)" }}>
-                <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
-                  <rect x="4" y="4" width="12" height="12" rx="3" fill="var(--accent)" fillOpacity="0.85"/>
-                  <rect x="20" y="4" width="12" height="12" rx="3" fill="var(--accent-2)" fillOpacity="0.5"/>
-                  <rect x="4" y="20" width="12" height="12" rx="3" fill="var(--accent-2)" fillOpacity="0.4"/>
-                  <rect x="20" y="20" width="12" height="12" rx="3" fill="var(--accent)" fillOpacity="0.25"/>
+          <div className="flex flex-col items-center justify-center min-h-[60vh] select-none">
+            {/* Empty state card */}
+            <div className="w-full max-w-[560px] rounded-2xl p-10 flex flex-col items-center"
+              style={{ border: "2px dashed var(--border-color)", background: "var(--bg-secondary)" }}>
+              {/* Icon */}
+              <div className="w-14 h-14 rounded-xl flex items-center justify-center mb-5"
+                style={{ background: "var(--gradient-subtle)", border: "1px solid var(--border-color)" }}>
+                <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+                  <rect x="3" y="3" width="9" height="9" rx="2.5" fill="var(--accent)" fillOpacity="0.85"/>
+                  <rect x="16" y="3" width="9" height="9" rx="2.5" fill="var(--accent-2)" fillOpacity="0.5"/>
+                  <rect x="3" y="16" width="9" height="9" rx="2.5" fill="var(--accent-2)" fillOpacity="0.4"/>
+                  <rect x="16" y="16" width="9" height="9" rx="2.5" fill="var(--accent)" fillOpacity="0.25"/>
                 </svg>
               </div>
-              <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[var(--accent)] opacity-50 blur-sm" />
-              <div className="absolute -bottom-1 -left-1 w-3 h-3 rounded-full bg-[var(--accent-2)] opacity-40 blur-sm" />
+              <h3 className="text-[16px] font-semibold mb-1.5 tracking-tight" style={{ color: "var(--text-primary)" }}>
+                Build your AI frontend
+              </h3>
+              <p className="text-[12px] text-center max-w-[320px] leading-relaxed mb-6" style={{ color: "var(--text-muted)" }}>
+                Drag blocks from the palette, pick a template, or click any block to add it.
+              </p>
+              {/* Action hints */}
+              <div className="flex items-center gap-5 text-[11px]" style={{ color: "var(--text-muted)" }}>
+                <span className="flex items-center gap-1.5">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  Add blocks
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+                  Connect agent
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  Preview &amp; publish
+                </span>
+              </div>
             </div>
-            <h3 className="text-[16px] font-semibold mb-2 tracking-tight" style={{ color: "var(--text-primary)" }}>
-              Start building your UI
-            </h3>
-            <p className="text-[12.5px] text-center max-w-[240px] leading-relaxed mb-6" style={{ color: "var(--text-muted)" }}>
-              Drag blocks from the left panel, pick a template, or describe what you want to the AI agent
-            </p>
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10.5px]"
-                style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-muted)" }}>
-                <span style={{ color: "var(--accent)" }}>⊞</span> Drag blocks
+
+            {/* Quick Start Templates */}
+            <div className="w-full max-w-[560px] mt-8">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-[11px]" style={{ color: "var(--accent)" }}>✦</span>
+                <span className="text-[12px] font-semibold" style={{ color: "var(--text-primary)" }}>Quick Start Templates</span>
               </div>
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10.5px]"
-                style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-muted)" }}>
-                <span style={{ color: "var(--accent-2)" }}>◎</span> Ask AI
-              </div>
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10.5px]"
-                style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-muted)" }}>
-                <span style={{ color: "var(--success)" }}>▤</span> Templates
+              <div className="grid grid-cols-2 gap-3">
+                {QUICK_TEMPLATES.map((t) => (
+                  <button key={t.id} onClick={(e) => { e.stopPropagation(); onTemplateClick(t.id); }}
+                    className="text-left p-3.5 rounded-xl transition-all"
+                    style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = t.color; e.currentTarget.style.background = "var(--bg-hover)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--border-color)"; e.currentTarget.style.background = "var(--bg-tertiary)"; }}>
+                    <div className="flex items-start gap-2.5">
+                      <span className="text-[16px] mt-0.5">{t.icon}</span>
+                      <div className="min-w-0">
+                        <div className="text-[12px] font-semibold mb-0.5" style={{ color: t.color }}>{t.name}</div>
+                        <div className="text-[10.5px] leading-relaxed" style={{ color: "var(--text-muted)" }}>{t.desc}</div>
+                        {t.blocks && <div className="text-[9.5px] mt-1.5" style={{ color: "var(--text-muted)", opacity: 0.6 }}>{t.blocks}</div>}
+                      </div>
+                    </div>
+                  </button>
+                ))}
               </div>
             </div>
           </div>
         ) : (
-          <SortableContext
-            items={rootIds.map((id) => `canvas-${id}`)}
-            strategy={verticalListSortingStrategy}
-          >
+          <SortableContext items={rootIds.map((id) => `canvas-${id}`)} strategy={verticalListSortingStrategy}>
             <div className="space-y-1.5">
-              {rootIds.map((id, index) => (
+              {rootIds.map((id) => (
                 <div key={id}>
                   <DropIndicator active={overId === `canvas-${id}` && activeId !== `canvas-${id}`} />
                   <CanvasBlock id={id} />
@@ -132,32 +160,203 @@ function CanvasDropZone({
 }
 
 function PreviewOverlay({ onClose }: { onClose: () => void }) {
-  const rootIds = useEditorStore((s) => s.rootIds);
+  const agentConfig = useEditorStore((s) => s.agentConfig);
+  const agentMessages = useEditorStore((s) => s.agentMessages);
+  const [previewTab, setPreviewTab] = useState<"edit" | "preview" | "code">("preview");
+  const [previewInput, setPreviewInput] = useState("");
+  const [previewLogs] = useState([
+    { time: "00:01", level: "info", msg: "Agent initialized — connected to runtime" },
+    { time: "00:02", level: "info", msg: 'Processing user query: "Analyze Q4 sales data"' },
+    { time: "00:03", level: "tool", msg: "Tool call: query_database started" },
+    { time: "00:04", level: "info", msg: "Database query returned 3 rows in 0.1s" },
+    { time: "00:05", level: "warn", msg: "Rate limit approaching: 45/50 requests" },
+  ]);
+  const [previewResults] = useState([
+    { region: "West", q4_revenue: "$4.2M", growth: "+12.5%" },
+    { region: "East", q4_revenue: "$3.8M", growth: "+8.3%" },
+  ]);
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape" || e.key === "f" || e.key === "F") { e.preventDefault(); onClose(); }
+      if (e.key === "Escape") { e.preventDefault(); onClose(); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
 
+  const chatMessages = agentMessages.length > 0 ? agentMessages : [
+    { role: "user" as const, content: "Analyze the Q4 sales data and find the top performing regions." },
+    { role: "assistant" as const, content: "I'll analyze the Q4 sales data now. Let me pull the regional breakdown and identify the top performers." },
+    { role: "user" as const, content: "Also compare it with Q3 numbers." },
+  ];
+
   return (
-    <div className="fixed inset-0 z-[70] bg-[var(--bg-primary)] overflow-auto">
-      <div className="absolute top-4 right-4 z-10">
-        <button onClick={onClose} className="btn btn-ghost text-[11px] glass-panel shadow-lg">
+    <div className="fixed inset-0 z-[70] flex flex-col" style={{ background: "#080810" }}>
+      {/* Top toolbar */}
+      <header className="shrink-0 flex items-center justify-between px-4" style={{ height: "48px", borderBottom: "1px solid var(--border-color)", background: "#0c0c16" }}>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: "var(--gradient-accent)" }}>
+              <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><rect x="1" y="1" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.95"/><rect x="8" y="1" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.55"/><rect x="1" y="8" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.55"/><rect x="8" y="8" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.3"/></svg>
+            </div>
+            <span className="text-[13px] font-semibold" style={{ color: "var(--text-primary)" }}>My Agent Frontend</span>
+          </div>
+          <div className="flex items-center rounded-lg overflow-hidden" style={{ border: "1px solid var(--border-color)" }}>
+            {(["Edit", "Preview", "Code"] as const).map((tab) => (
+              <button key={tab} onClick={() => setPreviewTab(tab.toLowerCase() as "edit" | "preview" | "code")}
+                className="px-4 py-1.5 text-[11px] font-medium transition-colors"
+                style={{
+                  background: previewTab === tab.toLowerCase() ? "var(--accent)" : "transparent",
+                  color: previewTab === tab.toLowerCase() ? "white" : "var(--text-muted)",
+                }}>{tab}</button>
+            ))}
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {["undo", "redo", "copy", "save", "settings"].map((action) => (
+            <button key={action} className="w-7 h-7 rounded-md flex items-center justify-center transition-colors" style={{ color: "var(--text-muted)", border: "1px solid var(--border-color)" }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--border-focus)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--border-color)"; }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                {action === "undo" && <><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></>}
+                {action === "redo" && <><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/></>}
+                {action === "copy" && <><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></>}
+                {action === "save" && <><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></>}
+                {action === "settings" && <><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9"/></>}
+              </svg>
+            </button>
+          ))}
+          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium" style={{ background: "var(--success)", color: "#000" }}>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download Project
+          </button>
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium" style={{ background: "rgba(34,211,160,0.15)", color: "var(--success)", border: "1px solid rgba(34,211,160,0.3)" }}>
+            <div className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--success)" }} />
+            Connected
+          </div>
+          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium" style={{ background: "var(--accent)", color: "white" }}>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+            AI Prompt
+          </button>
+        </div>
+      </header>
+
+      {/* Breadcrumb bar */}
+      <div className="shrink-0 flex items-center px-4 gap-2" style={{ height: "32px", borderBottom: "1px solid var(--border-color)", background: "#0a0a14" }}>
+        <span className="text-[11px] font-medium" style={{ color: "var(--accent)" }}>▸ Local Agent</span>
+        <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>{agentConfig.model || "gpt-4o"} / {agentConfig.externalEndpoint || "api/agent"}</span>
+      </div>
+
+      {/* Workspace hint */}
+      <div className="shrink-0 flex items-center justify-center py-1.5" style={{ background: "#09090f" }}>
+        <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>Default workspace — add blocks in the editor or connect an agent</span>
+      </div>
+
+      {/* Main content */}
+      <div className="flex-1 flex flex-col overflow-hidden p-3 gap-3" style={{ background: "#09090f" }}>
+        {/* Top row: Chat + Status */}
+        <div className="flex gap-3 flex-1 min-h-0">
+          {/* CHAT panel */}
+          <div className="flex-[3] flex flex-col rounded-xl overflow-hidden" style={{ border: "1px solid var(--border-color)", background: "#0c0c16" }}>
+            <div className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)", borderBottom: "1px solid var(--border-color)" }}>Chat</div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {chatMessages.map((msg, i) => (
+                <div key={i} className={`flex gap-2.5 ${msg.role === "user" ? "justify-end" : ""}`}>
+                  {msg.role === "assistant" && (
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[10px]" style={{ background: "var(--gradient-accent)", color: "white" }}>AI</div>
+                  )}
+                  <div className={`max-w-[80%] px-3 py-2 rounded-xl text-[12px] leading-relaxed ${msg.role === "user" ? "rounded-br-sm" : "rounded-bl-sm"}`}
+                    style={{
+                      background: msg.role === "user" ? "var(--accent-muted)" : "var(--bg-tertiary)",
+                      color: "var(--text-primary)",
+                      border: `1px solid ${msg.role === "user" ? "var(--accent-glow)" : "var(--border-color)"}`,
+                    }}>
+                    {msg.content}
+                  </div>
+                  {msg.role === "user" && (
+                    <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 text-[9px] font-semibold" style={{ background: "var(--accent)", color: "white" }}>A</div>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="p-3" style={{ borderTop: "1px solid var(--border-color)" }}>
+              <div className="flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)" }}>
+                <input value={previewInput} onChange={(e) => setPreviewInput(e.target.value)} placeholder="Type a message..." className="flex-1 bg-transparent text-[12px] outline-none" style={{ color: "var(--text-primary)" }} />
+                <button className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: "var(--gradient-accent)" }}>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* STATUS panel */}
+          <div className="flex-[1] flex flex-col rounded-xl overflow-hidden" style={{ border: "1px solid var(--border-color)", background: "#0c0c16" }}>
+            <div className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)", borderBottom: "1px solid var(--border-color)" }}>Status</div>
+            <div className="flex-1 flex items-center justify-center">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full" style={{ background: "var(--success)" }} />
+                <span className="text-[12px]" style={{ color: "var(--text-secondary)" }}>Idle</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom row: Results + Tool Activity */}
+        <div className="flex gap-3" style={{ height: "180px" }}>
+          {/* RESULTS panel */}
+          <div className="flex-1 flex flex-col rounded-xl overflow-hidden" style={{ border: "1px solid var(--border-color)", background: "#0c0c16" }}>
+            <div className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)", borderBottom: "1px solid var(--border-color)" }}>Results</div>
+            <div className="flex-1 overflow-y-auto p-3 space-y-2">
+              {previewResults.map((r, i) => (
+                <div key={i} className="p-3 rounded-lg text-[11px] font-mono leading-relaxed" style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", color: "var(--text-secondary)" }}>
+                  <div>{`{`}</div>
+                  <div className="pl-3">&quot;region&quot;: &quot;<span style={{ color: "var(--success)" }}>{r.region}</span>&quot;,</div>
+                  <div className="pl-3">&quot;q4_revenue&quot;: &quot;<span style={{ color: "var(--accent-hover)" }}>{r.q4_revenue}</span>&quot;,</div>
+                  <div className="pl-3">&quot;growth&quot;: &quot;<span style={{ color: "var(--success)" }}>{r.growth}</span>&quot;</div>
+                  <div>{`}`}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* TOOL ACTIVITY panel */}
+          <div className="flex-1 flex flex-col rounded-xl overflow-hidden" style={{ border: "1px solid var(--border-color)", background: "#0c0c16" }}>
+            <div className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)", borderBottom: "1px solid var(--border-color)" }}>Tool Activity</div>
+            <div className="flex-1 flex items-center justify-center">
+              <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>Waiting for agent tool calls...</span>
+            </div>
+          </div>
+        </div>
+
+        {/* LOGS panel */}
+        <div className="flex flex-col rounded-xl overflow-hidden" style={{ height: "130px", border: "1px solid var(--border-color)", background: "#0c0c16" }}>
+          <div className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)", borderBottom: "1px solid var(--border-color)" }}>Logs</div>
+          <div className="flex-1 overflow-y-auto p-2 font-mono text-[10px] leading-relaxed space-y-0.5">
+            {previewLogs.map((log, i) => (
+              <div key={i} className="flex gap-2 px-1.5 py-0.5 rounded" style={{ color: "var(--text-secondary)" }}>
+                <span style={{ color: "var(--text-muted)" }}>{log.time}</span>
+                <span className="font-semibold" style={{
+                  color: log.level === "warn" ? "var(--warning)" : log.level === "tool" ? "var(--accent-2)" : log.level === "info" ? "var(--text-muted)" : "var(--text-secondary)",
+                }}>[{log.level}]</span>
+                <span>{log.msg}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom bar with zoom controls */}
+      <div className="shrink-0 flex items-center justify-end px-4 gap-2" style={{ height: "28px", borderTop: "1px solid var(--border-color)", background: "#0c0c16" }}>
+        <button onClick={onClose} className="text-[10px] px-2 py-0.5 rounded transition-colors" style={{ color: "var(--text-muted)", border: "1px solid var(--border-color)" }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; }}>
           Exit Preview · Esc
         </button>
-      </div>
-      <div className="max-w-5xl mx-auto p-8 min-h-full">
-        {rootIds.length === 0 ? (
-          <p className="text-center text-[var(--text-muted)] mt-20 text-[13px]">Nothing to preview</p>
-        ) : (
-          <div className="space-y-2">{rootIds.map((id) => <CanvasBlock key={id} id={id} />)}</div>
-        )}
       </div>
     </div>
   );
 }
+
 
 function EditorInner() {
   const addBlock = useEditorStore((s) => s.addBlock);
@@ -183,7 +382,6 @@ function EditorInner() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
   const [dragType, setDragType] = useState<string | null>(null);
-  const [leftPanel, setLeftPanel] = useState<"blocks" | "layers" | "templates">("blocks");
   const [rightPanel, setRightPanel] = useState<"properties" | "code">("properties");
   const [showImport, setShowImport] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
@@ -192,12 +390,11 @@ function EditorInner() {
   const [previewSize, setPreviewSize] = useState<PreviewSize>("desktop");
   const [zoom, setZoom] = useState(100);
   const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [activeTab, setActiveTab] = useState<"edit" | "preview" | "code">("edit");
   const [confirmAction, setConfirmAction] = useState<{ title: string; message: string; action: () => void } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } })
-  );
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
   useEffect(() => {
     const saved = autoLoad();
@@ -224,7 +421,7 @@ function EditorInner() {
       if (e.key === "-" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); zoomOut(); return; }
       if (e.key === "0" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); zoomReset(); return; }
       if (isInput) return;
-      if (e.key === "f" || e.key === "F") { setShowPreview((p) => !p); return; }
+      if (e.key === "f" || e.key === "F") { setActiveTab((t) => t === "preview" ? "edit" : "preview"); return; }
       if ((e.key === "Delete" || e.key === "Backspace") && selectedId) {
         e.preventDefault();
         const block = blocks[selectedId];
@@ -258,86 +455,47 @@ function EditorInner() {
     setActiveId(null);
     setOverId(null);
     setDragType(null);
-
     const { active, over } = event;
     if (!over) return;
-
     const activeData = active.data.current;
     const overData = over.data.current;
     const overId = over.id as string;
 
-    // ── Palette drop ──
     if (activeData?.fromPalette) {
       const blockType = activeData.type as BlockType;
-
-      // Dropped on canvas root
-      if (overId === "canvas-root" || overData?.isRoot) {
-        addBlock(blockType, null);
-        return;
-      }
-
-      // Dropped on a container's inner drop zone
-      if (overData?.isContainer) {
-        addBlock(blockType, overData.blockId);
-        return;
-      }
-
-      // Dropped on a sortable block — insert before/after it
+      if (overId === "canvas-root" || overData?.isRoot) { addBlock(blockType, null); return; }
+      if (overData?.isContainer) { addBlock(blockType, overData.blockId); return; }
       if (overId.startsWith("canvas-")) {
         const targetBlockId = overId.replace("canvas-", "");
         const targetBlock = blocks[targetBlockId];
         if (!targetBlock) { addBlock(blockType, null); return; }
-
-        // If target is a container, add inside it
-        if (CONTAINER_TYPES.includes(targetBlock.type)) {
-          addBlock(blockType, targetBlockId);
-          return;
-        }
-
-        // Insert as sibling after the target
+        if (CONTAINER_TYPES.includes(targetBlock.type)) { addBlock(blockType, targetBlockId); return; }
         const parentId = targetBlock.parentId;
         const siblings = parentId ? blocks[parentId]?.children || [] : rootIds;
         const idx = siblings.indexOf(targetBlockId);
         addBlock(blockType, parentId, idx + 1);
         return;
       }
-
       addBlock(blockType, null);
       return;
     }
 
-    // ── Canvas reorder ──
     if (activeData?.blockId) {
       const blockId = activeData.blockId as string;
       const activeBlockId = `canvas-${blockId}`;
-
       if (activeBlockId === overId) return;
-
-      // Dropped into a container's inner zone
       if (overData?.isContainer && overData.blockId !== blockId) {
         const targetBlock = blocks[overData.blockId];
-        if (targetBlock) {
-          moveBlock(blockId, overData.blockId, targetBlock.children.length);
-        }
+        if (targetBlock) moveBlock(blockId, overData.blockId, targetBlock.children.length);
         return;
       }
-
-      // Dropped on canvas root
-      if (overId === "canvas-root" || overData?.isRoot) {
-        moveBlock(blockId, null, rootIds.length);
-        return;
-      }
-
-      // Dropped on another sortable block
+      if (overId === "canvas-root" || overData?.isRoot) { moveBlock(blockId, null, rootIds.length); return; }
       if (overId.startsWith("canvas-")) {
         const targetBlockId = overId.replace("canvas-", "");
         if (targetBlockId === blockId) return;
-
         const targetBlock = blocks[targetBlockId];
         const sourceBlock = blocks[blockId];
         if (!targetBlock || !sourceBlock) return;
-
-        // Same parent — reorder within the list
         const sameParent = sourceBlock.parentId === targetBlock.parentId;
         if (sameParent) {
           const parentId = sourceBlock.parentId;
@@ -345,8 +503,6 @@ function EditorInner() {
           const oldIdx = siblings.indexOf(blockId);
           const newIdx = siblings.indexOf(targetBlockId);
           if (oldIdx === -1 || newIdx === -1) return;
-
-          const reordered = arrayMove(siblings, oldIdx, newIdx);
           if (parentId && blocks[parentId]) {
             useEditorStore.getState().moveBlock(blockId, parentId, newIdx);
           } else {
@@ -354,8 +510,6 @@ function EditorInner() {
           }
           return;
         }
-
-        // Different parent — move to target's parent, after target
         const newParentId = targetBlock.parentId;
         const newSiblings = newParentId ? blocks[newParentId]?.children || [] : rootIds;
         const newIdx = newSiblings.indexOf(targetBlockId);
@@ -391,136 +545,92 @@ function EditorInner() {
     setConfirmAction({ title: "Clear canvas?", message: `This will remove all ${count} block(s). You can undo with Ctrl+Z.`, action: () => { clearCanvas(); toast("Canvas cleared", "info"); } });
   }
 
-  const blockCount = Object.keys(blocks).length;
-  const previewSizes: { key: PreviewSize; label: string; icon: React.ReactNode }[] = [
-    { key: "desktop", label: "Desktop", icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> },
-    { key: "tablet", label: "Tablet", icon: <svg width="11" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="4" y="2" width="16" height="20" rx="2"/><circle cx="12" cy="18" r="1" fill="currentColor"/></svg> },
-    { key: "mobile", label: "Mobile", icon: <svg width="9" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="5" y="2" width="14" height="20" rx="2"/><circle cx="12" cy="18" r="1" fill="currentColor"/></svg> },
-  ];
+  function handleQuickTemplate(id: string) {
+    if (id === "blank") return;
+    setShowTemplates(true);
+  }
 
-  const leftPanelTabs = [
-    { key: "blocks" as const, label: "Blocks", shortLabel: "Blocks", icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg> },
-    { key: "layers" as const, label: "Layers", shortLabel: "Layers", icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg> },
-    { key: "templates" as const, label: "Templates", shortLabel: "Tmpls", icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg> },
-  ];
+  const isConnected = true; // placeholder for agent connection status
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={pointerWithin}
-      onDragStart={handleDragStart}
-      onDragOver={handleDragOver}
-      onDragEnd={handleDragEnd}
-    >
+    <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
       <div className="h-screen flex flex-col" style={{ background: "var(--bg-primary)" }}>
 
         {/* ── Header ── */}
         <header className="shrink-0 flex items-center justify-between px-4 gap-3"
-          style={{
-            height: "52px",
-            borderBottom: "1px solid var(--border-color)",
-            background: "var(--bg-secondary)",
-          }}>
+          style={{ height: "48px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
 
-          {/* Left: Logo + nav */}
+          {/* Left: Logo + title */}
           <div className="flex items-center gap-3 min-w-0">
-            <div className="flex items-center gap-2.5 shrink-0">
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center"
-                style={{ background: "var(--gradient-accent)" }}>
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: "var(--gradient-accent)" }}>
+                <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
                   <rect x="1" y="1" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.95"/>
                   <rect x="8" y="1" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.55"/>
                   <rect x="1" y="8" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.55"/>
                   <rect x="8" y="8" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.3"/>
                 </svg>
               </div>
-              <span className="text-[13px] font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
-                UI Creator
-              </span>
+              <span className="text-[13px] font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>My Agent Frontend</span>
             </div>
-
-            {blockCount > 0 && (
-              <span className="pill pill-accent font-mono text-[10px] shrink-0">{blockCount} {blockCount === 1 ? "block" : "blocks"}</span>
-            )}
-
-            <div className="toolbar-divider shrink-0" />
-
-            <button onClick={() => setShowTemplates(true)} className="header-action shrink-0">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
-              Templates
-            </button>
           </div>
 
-          {/* Center: Preview size + zoom */}
-          <div className="flex items-center gap-2 shrink-0">
-            <div className="toolbar-group">
-              {previewSizes.map((s) => (
-                <button key={s.key} onClick={() => setPreviewSize(s.key)}
-                  className={`toolbar-btn tooltip ${previewSize === s.key ? "active" : ""}`}
-                  data-tip={s.label}>
-                  {s.icon}
+          {/* Center: Edit / Preview / Code toggle */}
+          <div className="flex items-center gap-1 shrink-0">
+            <div className="flex items-center rounded-lg p-0.5" style={{ background: "var(--bg-primary)", border: "1px solid var(--border-color)" }}>
+              {(["edit", "preview", "code"] as const).map((tab) => (
+                <button key={tab} onClick={() => setActiveTab(tab)}
+                  className="px-4 py-1.5 text-[11px] font-medium rounded-md transition-all capitalize"
+                  style={{
+                    background: activeTab === tab ? "var(--accent)" : "transparent",
+                    color: activeTab === tab ? "white" : "var(--text-muted)",
+                  }}>
+                  {tab === "edit" ? "Edit" : tab === "preview" ? "Preview" : "Code"}
                 </button>
               ))}
             </div>
-            <div className="toolbar-group">
-              <button onClick={zoomOut} className="toolbar-btn" title="Zoom out (Ctrl+-)">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              </button>
-              <button onClick={zoomReset} className="toolbar-btn font-mono text-[10px] min-w-[38px]" title="Reset zoom (Ctrl+0)">{zoom}%</button>
-              <button onClick={zoomIn} className="toolbar-btn" title="Zoom in (Ctrl+=)">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              </button>
-            </div>
           </div>
 
-          {/* Right: Actions */}
-          <div className="flex items-center gap-1.5 shrink-0">
-            <div className="toolbar-group">
-              <button onClick={() => useEditorStore.temporal.getState().undo()} className="toolbar-btn tooltip" data-tip="Undo (Ctrl+Z)">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
+          {/* Right: Toolbar actions */}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Toolbar icons */}
+            <div className="flex items-center gap-0.5">
+              <button onClick={() => useEditorStore.temporal.getState().undo()} className="toolbar-icon-btn" title="Undo">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
               </button>
-              <button onClick={() => useEditorStore.temporal.getState().redo()} className="toolbar-btn tooltip" data-tip="Redo (Ctrl+Y)">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/></svg>
+              <button onClick={() => useEditorStore.temporal.getState().redo()} className="toolbar-icon-btn" title="Redo">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/></svg>
+              </button>
+              <button onClick={() => setPreviewSize(previewSize === "desktop" ? "tablet" : previewSize === "tablet" ? "mobile" : "desktop")} className="toolbar-icon-btn" title="Device preview">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+              </button>
+              <button onClick={() => setTheme(theme === "dark" ? "light" : "dark")} className="toolbar-icon-btn" title="Toggle theme">
+                {theme === "dark"
+                  ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                  : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                }
               </button>
             </div>
 
-            <div className="toolbar-divider" />
-
-            <button onClick={() => setShowPreview(true)} className="header-action" title="Preview (F)">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-              Preview
-            </button>
-
-            <button onClick={handleExport} className="header-action">
+            {/* Download Project button */}
+            <button onClick={handleExport} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold text-white"
+              style={{ background: "var(--accent)", boxShadow: "0 0 0 1px rgba(124,106,247,0.3)" }}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              Export
+              Download Project
             </button>
 
-            <button onClick={() => setShowImport(true)} className="header-action">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-              Import
-            </button>
+            {/* Connected badge */}
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium"
+              style={{ background: "var(--success-subtle)", color: "var(--success)", border: "1px solid rgba(34,211,160,0.2)" }}>
+              <div className="w-1.5 h-1.5 rounded-full pulse-dot" style={{ background: "var(--success)" }} />
+              Connected
+            </div>
 
-            <div className="toolbar-divider" />
-
-            <button
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className="toolbar-btn tooltip"
-              data-tip={`${theme === "dark" ? "Light" : "Dark"} mode`}
-              style={{
-                padding: "5px 8px",
-                border: "1px solid var(--border-color)",
-                borderRadius: "var(--radius-sm)",
-                background: "var(--bg-primary)",
-              }}>
-              {theme === "dark"
-                ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-                : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-              }
-            </button>
-
-            <button onClick={handleClearCanvas} className="btn btn-danger-ghost text-[11px]" style={{ padding: "5px 10px" }}>
-              Clear
+            {/* AI Prompt button */}
+            <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold"
+              style={{ background: "var(--accent-muted)", color: "var(--accent-hover)", border: "1px solid rgba(124,106,247,0.2)" }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              AI Prompt
             </button>
           </div>
         </header>
@@ -528,88 +638,48 @@ function EditorInner() {
         {/* ── Main area ── */}
         <div className="flex-1 flex overflow-hidden">
 
-          {/* Left sidebar */}
-          <aside className="flex shrink-0" style={{ borderRight: "1px solid var(--border-color)" }}>
-            {/* Icon nav rail */}
-            <div className="flex flex-col items-center py-2 shrink-0"
-              style={{
-                width: "48px",
-                borderRight: "1px solid var(--border-color)",
-                background: "var(--bg-secondary)",
-              }}>
-              {leftPanelTabs.map((p) => (
-                <button key={p.key} onClick={() => setLeftPanel(p.key)}
-                  className={`sidebar-nav-btn ${leftPanel === p.key ? "active" : ""}`}
-                  title={p.label}>
-                  {p.icon}
-                  <span style={{ fontSize: "8.5px", fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase" }}>
-                    {p.shortLabel}
-                  </span>
-                </button>
-              ))}
-            </div>
+          {/* Left sidebar - Block Palette */}
+          <aside className="flex flex-col shrink-0" style={{ width: "220px", borderRight: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
+            <BlockPalette />
+          </aside>
 
-            {/* Panel content */}
-            <div style={{ width: "220px", background: "var(--bg-secondary)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
-              <div className="flex-1 overflow-hidden">
-                {leftPanel === "blocks" && <BlockPalette />}
-                {leftPanel === "layers" && <LayerTree />}
-                {leftPanel === "templates" && (
-                  <div className="h-full">
-                    <TemplateGallery
-                      onClose={() => setLeftPanel("blocks")}
-                      onApply={(name) => toast(`"${name}" applied`, "success")}
-                      inline
-                    />
-                  </div>
+          {/* Canvas / Preview / Code */}
+          {activeTab === "edit" && (
+            <CanvasDropZone previewSize={previewSize} zoom={zoom} activeId={activeId} overId={overId} onTemplateClick={handleQuickTemplate} />
+          )}
+          {activeTab === "preview" && (
+            <div className="flex-1 overflow-auto p-8 canvas-grid">
+              <div className="max-w-5xl mx-auto min-h-full">
+                {rootIds.length === 0 ? (
+                  <p className="text-center text-[var(--text-muted)] mt-20 text-[13px]">Nothing to preview</p>
+                ) : (
+                  <div className="space-y-2">{rootIds.map((id) => <CanvasBlock key={id} id={id} />)}</div>
                 )}
               </div>
             </div>
-          </aside>
-
-          {/* Canvas */}
-          <CanvasDropZone previewSize={previewSize} zoom={zoom} activeId={activeId} overId={overId} />
-
-          {/* Right sidebar */}
-          <aside className="w-[272px] flex flex-col shrink-0"
-            style={{ borderLeft: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
-            <div className="flex" style={{ borderBottom: "1px solid var(--border-color)" }}>
-              {([
-                { key: "properties" as const, label: "Properties", icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> },
-                { key: "code" as const, label: "Code", icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg> },
-              ]).map((p) => (
-                <button key={p.key} onClick={() => setRightPanel(p.key)}
-                  className={`tab-btn flex items-center justify-center gap-1.5 ${rightPanel === p.key ? "active" : ""}`}>
-                  {p.icon}
-                  <span>{p.label}</span>
-                </button>
-              ))}
-            </div>
+          )}
+          {activeTab === "code" && (
             <div className="flex-1 overflow-hidden">
-              {rightPanel === "properties" && <PropertiesPanel />}
-              {rightPanel === "code" && <CodePanel />}
+              <CodePanel />
             </div>
-          </aside>
+          )}
+
+          {/* Right sidebar - Properties */}
+          {activeTab === "edit" && (
+            <aside className="flex flex-col shrink-0" style={{ width: "260px", borderLeft: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
+              <PropertiesPanel />
+            </aside>
+          )}
         </div>
 
         {/* ── Footer ── */}
         <footer className="shrink-0 flex items-center justify-between px-4 select-none"
-          style={{
-            height: "28px",
-            borderTop: "1px solid var(--border-color)",
-            background: "var(--bg-secondary)",
-          }}>
-          <div className="flex items-center gap-4 text-[10px]" style={{ color: "var(--text-muted)" }}>
-            <span>↑↓←→ navigate</span>
-            <span>Ctrl+C/V copy/paste</span>
-            <span>Ctrl+D duplicate</span>
-            <span>Del remove</span>
-            <span>F preview</span>
+          style={{ height: "26px", borderTop: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
+          <div className="flex items-center gap-3 text-[9.5px]" style={{ color: "var(--text-muted)" }}>
+            <span>LANGSMITH</span>
           </div>
-          <div className="flex items-center gap-2 text-[10px]" style={{ color: "var(--text-muted)" }}>
-            {previewSize !== "desktop" && <span className="pill pill-accent">{PREVIEW_WIDTHS[previewSize]}</span>}
-            {zoom !== 100 && <span className="pill pill-accent">{zoom}%</span>}
-            <span className="gradient-text font-semibold text-[10px]">UI Creator</span>
+          <div className="flex items-center gap-2 text-[9.5px]" style={{ color: "var(--text-muted)" }}>
+            <span className="gradient-text font-semibold">My Agent Frontend</span>
           </div>
         </footer>
       </div>

@@ -107,6 +107,12 @@ export interface AgentConfig {
   externalEndpoint: string;
   webhookUrl: string;
   customHeaders: string;
+  // Enhanced config
+  temperature: number;
+  maxTokens: number;
+  topP: number;
+  responseFormat: "auto" | "json" | "text";
+  timeout: number;
 }
 
 // Tracked state (undo/redo applies to this)
@@ -239,6 +245,11 @@ export const useEditorStore = create<EditorState>()(
         externalEndpoint: "",
         webhookUrl: "",
         customHeaders: "",
+        temperature: 0.7,
+        maxTokens: 4096,
+        topP: 1,
+        responseFormat: "auto",
+        timeout: 30000,
       },
       agentMessages: [],
       agentLoading: false,

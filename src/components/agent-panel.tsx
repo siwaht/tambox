@@ -80,6 +80,7 @@ export default function AgentPanel() {
 
   const [input, setInput] = useState("");
   const [showConfig, setShowConfig] = useState(agentMessages.length === 0);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [testStatus, setTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
   const [showApiKey, setShowApiKey] = useState(false);
   const messagesEnd = useRef<HTMLDivElement>(null);
@@ -109,17 +110,21 @@ export default function AgentPanel() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: userMsg, config: agentConfig, history: agentMessages }),
       });
-      if (!res.ok) {
-        const errText = await res.text();
-        addAgentMessage({ role: "assistant", content: `API error (${res.status}): ${errText}` });
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        const errorMsg = data.error || `API error (${res.status})`;
+        const hint = data.errorCode === "NO_API_KEY" ? "\n\nOpen the config panel above to add your key."
+          : data.errorCode === "TIMEOUT" ? "\n\nTry increasing the timeout in Advanced settings."
+          : "";
+        addAgentMessage({ role: "assistant", content: `${errorMsg}${hint}` });
         return;
       }
-      const data = await res.json();
-      const responseText = data.response || data.error || "No response from agent — check console for details.";
-      if (!data.response && !data.error) {
-        console.error("[Agent] Unexpected API response:", data);
-      }
+
+      const responseText = data.response || "No response from agent.";
+      const meta = data.latencyMs ? ` (${(data.latencyMs / 1000).toFixed(1)}s` + (data.usage?.totalTokens ? ` · ${data.usage.totalTokens} tokens)` : ")") : "";
       addAgentMessage({ role: "assistant", content: responseText });
+      if (meta) console.log(`[Agent] Response${meta}`);
       const blocks = parseAgentBlocks(responseText);
       if (blocks) addBlocksFromAgent(blocks);
     } catch (err) {
@@ -146,11 +151,17 @@ export default function AgentPanel() {
   };
 
   const QUICK_PROMPTS = [
-    "Create a hero section with heading and CTA",
-    "Build a pricing card with features list",
-    "Make a user profile card with avatar",
-    "Design a dashboard stats grid",
+    { text: "Create a hero section with heading and CTA", icon: "🎯" },
+    { text: "Build a pricing card with features list", icon: "💰" },
+    { text: "Make a user profile card with avatar", icon: "👤" },
+    { text: "Design a dashboard stats grid", icon: "📊" },
+    { text: "Build a login form with inputs", icon: "🔐" },
+    { text: "Create a navigation bar with links", icon: "🧭" },
   ];
+
+  const clearChat = () => {
+    useEditorStore.setState({ agentMessages: [] });
+  };
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
@@ -355,6 +366,80 @@ export default function AgentPanel() {
               />
             </label>
 
+            {/* Advanced settings */}
+            <div>
+              <button
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                className="flex items-center gap-1.5 w-full text-left py-1"
+                style={{ color: "var(--text-muted)" }}>
+                <svg
+                  width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+                  style={{ transform: showAdvanced ? "rotate(90deg)" : "none", transition: "transform 0.15s" }}>
+                  <polyline points="9 6 15 12 9 18"/>
+                </svg>
+                <span className="text-[10px] font-semibold uppercase tracking-wider">Advanced</span>
+              </button>
+              {showAdvanced && (
+                <div className="space-y-2.5 mt-2 animate-in">
+                  <label className="block">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="sidebar-section-title">Temperature</span>
+                      <span className="text-[10px] font-mono" style={{ color: "var(--accent)" }}>{agentConfig.temperature ?? 0.7}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0" max="2" step="0.1"
+                      value={agentConfig.temperature ?? 0.7}
+                      onChange={(e) => setAgentConfig({ temperature: parseFloat(e.target.value) })}
+                      className="w-full accent-[var(--accent)]"
+                      style={{ height: "4px" }}
+                    />
+                    <div className="flex justify-between text-[9px] mt-0.5" style={{ color: "var(--text-muted)" }}>
+                      <span>Precise</span><span>Creative</span>
+                    </div>
+                  </label>
+                  <label className="block">
+                    <span className="sidebar-section-title block mb-1.5">Max Tokens</span>
+                    <input
+                      type="number"
+                      min="256" max="32768" step="256"
+                      value={agentConfig.maxTokens ?? 4096}
+                      onChange={(e) => setAgentConfig({ maxTokens: parseInt(e.target.value) || 4096 })}
+                      className="input-base text-[12px] font-mono"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="sidebar-section-title block mb-1.5">Timeout <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>(seconds)</span></span>
+                    <input
+                      type="number"
+                      min="5" max="120" step="5"
+                      value={Math.round((agentConfig.timeout ?? 30000) / 1000)}
+                      onChange={(e) => setAgentConfig({ timeout: (parseInt(e.target.value) || 30) * 1000 })}
+                      className="input-base text-[12px] font-mono"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="sidebar-section-title block mb-1.5">Response Format</span>
+                    <div className="grid grid-cols-3 gap-1">
+                      {(["auto", "json", "text"] as const).map((fmt) => (
+                        <button
+                          key={fmt}
+                          onClick={() => setAgentConfig({ responseFormat: fmt })}
+                          className="px-2 py-1.5 rounded-md text-[10px] font-medium transition-all capitalize"
+                          style={{
+                            border: `1px solid ${agentConfig.responseFormat === fmt ? "var(--accent)" : "var(--border-color)"}`,
+                            background: agentConfig.responseFormat === fmt ? "var(--accent-subtle)" : "var(--bg-primary)",
+                            color: agentConfig.responseFormat === fmt ? "var(--accent)" : "var(--text-muted)",
+                          }}>
+                          {fmt}
+                        </button>
+                      ))}
+                    </div>
+                  </label>
+                </div>
+              )}
+            </div>
+
             {/* Test connection */}
             <button
               onClick={testConnection}
@@ -402,12 +487,12 @@ export default function AgentPanel() {
             <p className="text-[11px] text-center" style={{ color: "var(--text-muted)" }}>
               Ask the AI to build UI components
             </p>
-            <div className="space-y-1.5">
+            <div className="grid grid-cols-2 gap-1.5">
               {QUICK_PROMPTS.map((prompt) => (
                 <button
-                  key={prompt}
-                  onClick={() => { setInput(prompt); inputRef.current?.focus(); }}
-                  className="w-full text-left px-3 py-2 rounded-lg text-[11px] transition-all group"
+                  key={prompt.text}
+                  onClick={() => { setInput(prompt.text); inputRef.current?.focus(); }}
+                  className="text-left px-2.5 py-2 rounded-lg text-[10.5px] transition-all"
                   style={{
                     background: "var(--bg-tertiary)",
                     border: "1px solid var(--border-color)",
@@ -423,10 +508,23 @@ export default function AgentPanel() {
                     (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)";
                     (e.currentTarget as HTMLElement).style.background = "var(--bg-tertiary)";
                   }}>
-                  <span style={{ color: "var(--accent)" }}>→</span> {prompt}
+                  <span className="mr-1">{prompt.icon}</span> {prompt.text}
                 </button>
               ))}
             </div>
+          </div>
+        )}
+
+        {agentMessages.length > 0 && (
+          <div className="flex justify-end mb-1">
+            <button
+              onClick={clearChat}
+              className="text-[9.5px] px-2 py-1 rounded-md transition-colors"
+              style={{ color: "var(--text-muted)", background: "transparent" }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}>
+              Clear chat
+            </button>
           </div>
         )}
 
